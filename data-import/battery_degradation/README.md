@@ -3,7 +3,7 @@
 Imports [Battery Degradation Dataset (Fixed Current Profiles & Arbitrary Uses Profiles), v2](https://data.mendeley.com/datasets/kw34hhw7xg/2)
 (Lu, Xiong, Tian et al., doi:10.17632/kw34hhw7xg.2, CC BY 4.0) into PostgreSQL.
 
-77 18650 Li-ion cells; 145 cycler exports (`.xlsx`, ~2.4 GB) plus `Readme.txt` listing each cell's charge/discharge rate.
+77 18650 Li-ion cells (no data files for #10, #13, #16, #19 in v2); 145 cycler exports (`.xlsx`, ~2.4 GB) plus `Readme.txt` listing each cell's charge/discharge rate.
 
 ```bash
 pip install python-calamine "psycopg[binary]"

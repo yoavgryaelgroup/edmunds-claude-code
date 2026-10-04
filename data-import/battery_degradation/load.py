@@ -114,14 +114,25 @@ EXPECTED_HEADER = [
 ]
 
 
+def num(v):
+    """Numeric cell as COPY text; blanks and '-' (missing readings) become NULL."""
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return str(v)
+    v = str(v or "").strip()
+    if v in ("", "-"):
+        return r"\N"
+    float(v)  # raise on anything else unexpected
+    return v
+
+
 def to_tsv(rows, file_id, battery_id):
     buf = io.StringIO()
     for r in rows:
         if r[0] in ("", None):
             continue
         buf.write(
-            f"{file_id}\t{battery_id}\t{int(r[0])}\t{test_time_seconds(r[1])}\t{r[2]}\t{r[3]}\t"
-            f"{r[4]}\t{r[5]}\t{r[6]}\t{date_time(r[7])}\t{int(r[8])}\n"
+            f"{file_id}\t{battery_id}\t{int(r[0])}\t{test_time_seconds(r[1])}\t{num(r[2])}\t{num(r[3])}\t"
+            f"{num(r[4])}\t{num(r[5])}\t{num(r[6])}\t{date_time(r[7])}\t{int(r[8])}\n"
         )
     return buf.getvalue()
 
@@ -153,7 +164,10 @@ def main():
 
     with psycopg.connect(url, autocommit=False) as conn:
         conn.execute((HERE / "schema.sql").read_text())
-        groups = {f["battery"]: f["group"] for f in files if f["battery"]}
+        # From the folder tree, so batteries whose folder is empty (#10, #13, #16, #19 in v2) are kept too.
+        folders = get_json(f"{API}/{DATASET}/folders/{VERSION}")
+        by_id = {f["id"]: f for f in folders}
+        groups = {f["name"]: by_id[f["parent_id"]]["name"] for f in folders if f.get("parent_id") in by_id}
         for name, group in groups.items():
             b = battery_num(name)
             charge, discharge = rates.get(b, (None, None))
