@@ -128,8 +128,6 @@ def num(v):
 def to_tsv(rows, file_id, battery_id):
     buf = io.StringIO()
     for r in rows:
-        if r[0] in ("", None):
-            continue
         buf.write(
             f"{file_id}\t{battery_id}\t{int(r[0])}\t{test_time_seconds(r[1])}\t{num(r[2])}\t{num(r[3])}\t"
             f"{num(r[4])}\t{num(r[5])}\t{num(r[6])}\t{date_time(r[7])}\t{int(r[8])}\n"
@@ -192,7 +190,8 @@ def main():
             p = local_path(data_dir, f)
             wb = CalamineWorkbook.from_path(str(p))
             rows = wb.get_sheet_by_index(0).to_python()
-            header, rows = rows[0], rows[1:]
+            header = rows[0]
+            rows = [r for r in rows[1:] if r[0] not in ("", None)]  # some sheets have fully blank rows
             if [str(h).strip() for h in header[:9]] != EXPECTED_HEADER:
                 sys.exit(f"unexpected header in {p}: {header}")
             conn.execute("DELETE FROM source_files WHERE battery_id = %s AND filename = %s", (b, f["name"]))
