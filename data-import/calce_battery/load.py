@@ -20,6 +20,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import urllib.parse
 import zipfile
 from pathlib import Path
@@ -74,9 +75,16 @@ def list_datasets():
 
 
 def remote_size(url):
-    head = curl("-I", url).decode("latin1")
-    sizes = re.findall(r"(?im)^content-length:\s*(\d+)", head)
-    return int(sizes[-1]) if sizes else None
+    """Content-Length of url, or None if the server can't be asked (the zip check still applies)."""
+    for attempt in range(4):
+        try:
+            head = curl("-I", url).decode("latin1")
+        except subprocess.CalledProcessError:
+            time.sleep(2 ** attempt)
+            continue
+        sizes = re.findall(r"(?im)^content-length:\s*(\d+)", head)
+        return int(sizes[-1]) if sizes else None
+    return None
 
 
 def download(url, path):
