@@ -6,8 +6,9 @@ Usage:
     DATABASE_URL=postgresql://user:pass@host:5432/battery_aging python load.py ZIP_OR_DIR [...]
 
 Each argument is a BatteryAgingARC zip (e.g. 5._BatteryAgingARC_49_50_51_52.zip) or a directory
-with the extracted B00NN.mat and README files. Tables are created from schema.sql. A battery that
-is already in the database is replaced, so re-running is safe.
+with the extracted B00NN.mat and README files. Tables are created from schema.sql inside the
+schema named by DB_SCHEMA (default nasa_battery_aging), so they never clash with existing tables.
+A battery that is already loaded is replaced, so re-running is safe.
 """
 import datetime as dt
 import io
@@ -21,6 +22,7 @@ from pathlib import Path
 import numpy as np
 import psycopg
 import scipy.io as sio
+from psycopg import sql
 
 HERE = Path(__file__).resolve().parent
 NULL = r"\N"
@@ -180,7 +182,10 @@ def main():
     url = os.environ.get("DATABASE_URL")
     if not url or len(sys.argv) < 2:
         sys.exit(__doc__)
+    schema = os.environ.get("DB_SCHEMA", "nasa_battery_aging")
     with tempfile.TemporaryDirectory() as tmp, psycopg.connect(url) as conn:
+        conn.execute(sql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(sql.Identifier(schema)))
+        conn.execute(sql.SQL("SET search_path TO {}").format(sql.Identifier(schema)))
         conn.execute((HERE / "schema.sql").read_text())
         conn.commit()
         for src in map(Path, sys.argv[1:]):
@@ -198,7 +203,7 @@ def main():
                 archive = re.sub(r"^[0-9a-f]{8}-(?=\d)", "", src.name)
                 load_battery(conn, mat, archive, meta.get(mat.stem, {}))
         conn.execute("ANALYZE")
-    print("done")
+    print(f"done: tables are in schema {schema!r}")
 
 
 if __name__ == "__main__":

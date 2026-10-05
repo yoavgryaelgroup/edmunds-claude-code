@@ -10,7 +10,8 @@ DATABASE_URL=postgresql://user:pass@host:5432/battery_aging python load.py \
     5._BatteryAgingARC_49_50_51_52.zip 6._BatteryAgingARC_53_54_55_56.zip
 ```
 
-Arguments are the original zips or folders containing the extracted files. Tables come from `schema.sql`.
+Arguments are the original zips or folders containing the extracted files. Tables come from `schema.sql` and
+go in the schema `nasa_battery_aging` (set `DB_SCHEMA` to change it), so tables already in the database aren't affected.
 Loading a battery again replaces its rows.
 
 ## Tables
