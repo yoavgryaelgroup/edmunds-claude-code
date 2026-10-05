@@ -154,6 +154,8 @@ def jsonable(v):
         return v.total_seconds()
     if isinstance(v, float) and not math.isfinite(v):
         return None
+    if isinstance(v, str):
+        return v.replace("\x00", "")  # jsonb can't store \u0000
     return v
 
 
@@ -274,12 +276,25 @@ def load_text(ctx, data):
         ctx.set_rows(file_id, text.count("\n") + 1)
 
 
+def looks_binary(data):
+    if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        return False  # UTF-16 text legitimately contains NUL bytes
+    return b"\x00" in data or sum(b < 9 or 13 < b < 32 for b in data[:4096]) > 8
+
+
 def load_csv(ctx, data):
+    if looks_binary(data):
+        # e.g. Impedance_-40C/.../3_08_2015_-40C_100SOC_PLN130.csv is random bytes in CALCE's own archive.
+        file_id = ctx.add_file("", "unreadable", f"binary content, not a text CSV ({len(data)} bytes)")
+        ctx.set_rows(file_id, 0)
+        print(f"  {ctx.path}: not a text file, recorded as unreadable", flush=True)
+        return
     text = decode_text(data)
     lines_in = [l for l in text.splitlines() if l.strip()]
     if lines_in and lines_in[0].startswith("Name:"):
         return load_temperature_log(ctx, lines_in)
-    rows = [[c.strip() for c in l.split(",")] for l in lines_in]
+    delim = ";" if lines_in and ";" in lines_in[0] and "," not in lines_in[0] else ","
+    rows = [[c.strip() for c in l.split(delim)] for l in lines_in]
     try:
         numeric = all(len(r) == 5 for r in rows) and all(float(c) or True for r in rows for c in r)
     except ValueError:
@@ -375,14 +390,14 @@ def load_mat(ctx, data):
 
 # ---------------------------------------------------------------- driver
 
-CELL_RE = re.compile(r"(CS2_\d+|CX2_\d+|PLN\d+(?![\d_]|to)|PL\d+|A1-\d{3}|SP20-\d)")
+CELL_RE = re.compile(r"(CS2_\d+|CX2_\d+|PLN\d+(?![\d_]|to)|PLN_\d+(?=_Impedance)|PL\d+|A1-\d{3}|SP20-\d)")
 
 
 class Member:
     def __init__(self, conn, dataset, path):
         self.conn, self.dataset, self.path = conn, dataset, path
         m = CELL_RE.search(path) or CELL_RE.search(dataset)
-        self.cell = m.group(1) if m else None
+        self.cell = m.group(1).replace("PLN_", "PLN") if m else None
         self.file_ids = []
 
     def add_file(self, sheet, kind, header, text_content=None):

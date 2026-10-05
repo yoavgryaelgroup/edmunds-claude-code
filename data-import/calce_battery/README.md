@@ -41,6 +41,9 @@ GROUP BY 1, 2 ORDER BY 2;
 
 Notes:
 - Excel lock files (`~$…`), `Thumbs.db` and `desktop.ini` in the archives are skipped.
+- `Impedance_-40C/3W/-40C_3W_4/3_08_2015_-40C_100SOC_PLN130.csv` is random binary in CALCE's own archive. It is
+  listed in `calce_files` with kind `unreadable` and has no rows.
+- `11_5_14_PLN_72_Impedance.csv` has two extra hand-added columns, so it is stored in `calce_generic_rows`.
 - The PLN impedance `.csv` files have no header row. The column names (frequency, Z real, Z imaginary, |Z|,
   phase) are inferred from the values, which satisfy |Z| = √(re² + im²) and phase = atan(im / re).
 - PL `.mat` files store MATLAB `table` objects, read with `mat-io`. `Date_Time` (MATLAB datenum) is converted

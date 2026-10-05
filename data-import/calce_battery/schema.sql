@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS calce_files (
     member_path  text NOT NULL,                  -- path inside the zip
     sheet_name   text NOT NULL DEFAULT '',       -- '' for non-spreadsheet files
     cell         text,                           -- cell named in the path, e.g. 'CS2_35', 'PL12', 'PLN59', 'A1-007'
-    kind         text NOT NULL,                  -- target table: arbin, arbin_statistics, cadex, pl_mat, impedance,
+    kind         text NOT NULL,                  -- target table: arbin, arbin_statistics, cadex, pl_mat, impedance, unreadable,
                                                  -- temperature_log, generic, text
     header       text,                           -- column header row / instrument header as found in the file
     text_content text,                           -- full content of readme-style text files
