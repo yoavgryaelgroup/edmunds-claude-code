@@ -14,6 +14,7 @@ Options:
     --raw-dir DIR          where to keep the files (required; use a short path such as C:\\battery_raw on Windows)
     --platform NAME ...    only sources on these platforms (e.g. mendeley)
     --source ID ...        only these ingest.source ids
+    --match TEXT ...       only sources whose URL contains one of these (e.g. a Mendeley dataset id)
     --workers N            parallel downloads (default 4)
 
 Re-running skips files already downloaded, retries the ones that failed, and continues where it stopped. Nothing is ever deleted except a
@@ -131,6 +132,7 @@ def main():
     ap.add_argument("--raw-dir", required=True)
     ap.add_argument("--platform", nargs="*")
     ap.add_argument("--source", nargs="*", type=int)
+    ap.add_argument("--match", nargs="*", help="only sources whose URL contains one of these")
     ap.add_argument("--workers", type=int, default=4)
     args = ap.parse_args()
     db = os.environ.get("DATABASE_URL")
@@ -140,6 +142,7 @@ def main():
         sys.exit("curl was not found; it is included in Windows 10 and later, and in macOS and Linux")
     schema = os.environ.get("DB_SCHEMA", "ingest")
     raw_dir = Path(args.raw_dir).resolve()
+    match = [f"%{m}%" for m in args.match] if args.match else None
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     with psycopg.connect(db) as conn:
@@ -158,8 +161,9 @@ def main():
               AND (r.file_id IS NULL OR r.status = 'failed')
               AND (%(platforms)s::text[] IS NULL OR s.platform = ANY(%(platforms)s))
               AND (%(sources)s::int[] IS NULL OR s.source_id = ANY(%(sources)s))
+              AND (%(match)s::text[] IS NULL OR s.url ILIKE ANY(%(match)s))
             ORDER BY s.source_id, f.file_id""",
-            {"platforms": args.platform, "sources": args.source}).fetchall()
+            {"platforms": args.platform, "sources": args.source, "match": match}).fetchall()
         jobs = [dict(file_id=r[0], path=r[1], size=r[2], checksum=r[3], algo=r[4], url=r[5],
                      folder=source_folder(r[7], r[6], r[8])) for r in rows]
         need = sum(j["size"] or 0 for j in jobs)
@@ -201,8 +205,9 @@ def main():
                                   JOIN remote_file USING (file_id) JOIN source s USING (source_id)
                                   WHERE (%(platforms)s::text[] IS NULL OR s.platform = ANY(%(platforms)s))
                                     AND (%(sources)s::int[] IS NULL OR s.source_id = ANY(%(sources)s))
+                                    AND (%(match)s::text[] IS NULL OR s.url ILIKE ANY(%(match)s))
                                   GROUP BY 1 ORDER BY 1""",
-                               {"platforms": args.platform, "sources": args.source}).fetchall()
+                               {"platforms": args.platform, "sources": args.source, "match": match}).fetchall()
     print("\nsummary for this selection:")
     for status, n, b in summary:
         print(f"  {status:10} {n:6} files  {float(b or 0) / 1e9:8.2f} GB")

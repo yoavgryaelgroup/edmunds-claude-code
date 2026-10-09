@@ -4,7 +4,7 @@
 Usage:
     pip install python-calamine scipy numpy mat73 "psycopg[binary]"
     DATABASE_URL=postgresql://postgres:password@localhost:5432/battery_aging \
-        python parse.py --raw-dir C:\\battery_raw [--platform mendeley] [--source 34 ...] [--reparse]
+        python parse.py --raw-dir C:\\battery_raw [--platform mendeley] [--match wykht8y7tg ...] [--reparse]
 
 For every file in ingest.raw_file (and every file inside downloaded zip / tar archives) it stores:
   - staging.source_table: one row per table (CSV or text file, Excel sheet, group of arrays in a .mat file),
@@ -444,6 +444,7 @@ def main():
     ap.add_argument("--raw-dir", required=True)
     ap.add_argument("--platform", nargs="*")
     ap.add_argument("--source", nargs="*", type=int)
+    ap.add_argument("--match", nargs="*", help="only sources whose URL contains one of these (e.g. a Mendeley id)")
     ap.add_argument("--reparse", action="store_true")
     ap.add_argument("--only-ext", nargs="*", help="only files with these extensions (e.g. csv txt)")
     args = ap.parse_args()
@@ -466,7 +467,9 @@ def main():
             WHERE r.status <> 'failed'
               AND (%(p)s::text[] IS NULL OR s.platform = ANY(%(p)s))
               AND (%(s)s::int[] IS NULL OR s.source_id = ANY(%(s)s))
-            ORDER BY s.source_id, r.file_id""", {"p": args.platform, "s": args.source}).fetchall()
+              AND (%(m)s::text[] IS NULL OR s.url ILIKE ANY(%(m)s))
+            ORDER BY s.source_id, r.file_id""",
+            {"p": args.platform, "s": args.source, "m": [f"%{x}%" for x in args.match] if args.match else None}).fetchall()
         done = set() if args.reparse else {
             (fid, m) for fid, m in conn.execute(
                 "SELECT file_id, member_path FROM parse_unit WHERE status <> 'failed' AND parser_version = %s",
