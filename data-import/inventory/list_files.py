@@ -271,6 +271,7 @@ def github(url):
     r = get(f"https://api.github.com/repos/{owner}/{repo}")
     if r.status_code == 404:
         raise Manual("repository not found at this address (the Scrape Notes say it moved)")
+    r.raise_for_status()
     info = r.json()
     branch = info.get("default_branch", "main")
     tree = get_json(f"https://api.github.com/repos/{info['full_name']}/git/trees/{branch}", params={"recursive": 1})
@@ -307,6 +308,9 @@ def html_links(url):
             pass
         files.append(f(urllib.parse.unquote(urllib.parse.urlparse(link).path.rsplit("/", 1)[-1]), size, url=link))
         time.sleep(0.2)
+    if not files:
+        raise Manual("the landing page has no file links a script can see (the file list is loaded by "
+                     "JavaScript); list the files in a browser")
     return (html.unescape(re.sub(r"\s+", " ", title.group(1))).strip() if title else None), files
 
 
