@@ -1,0 +1,63 @@
+# Dataset - 58: battery degradation data, LG M50 21700 cells (University of Warwick)
+# Cells aged from four starting states of health (100/95/90/85/80 % groups) with capacity checks every 20 cycles,
+# plus EIS at several temperatures and SOCs.
+dataset_key: mendeley:mn9fb7xdx6
+source_match: mn9fb7xdx6
+title: DIB_Data (LG M50 degradation and state of health)
+notes: >
+  The .matfiles folder repeats the .csvfiles data in MATLAB format and is not loaded twice. WholeDataRealSOH.mat
+  is not mapped yet. Capacity-check current is negative on discharge, as in the core convention. The EIS .xls
+  files have no header: columns are frequency, Re(Z), Im(Z) (Im is positive at 10 kHz and negative at low
+  frequency, i.e. Im(Z) as measured).
+cell_defaults: {manufacturer: LG, model: M50, chemistry: NMC, form_factor: cylindrical 21700, nominal_capacity_ah: 5.0}
+
+tables:
+  - label: capacity checks (Digatron .csv)
+    produce: timeseries
+    where: {kind: delimited, path: '\.csvfiles/Capacity_Check/.*Cell\d+_.*\.csv$'}
+    cell: {path: 'Cell0*(\d+)_', template: 'Cell{}'}
+    test:
+      type: {const: characterization}
+      ambient_temp_c: {path: '_(\d+)degC_', number: true}
+      attributes:
+        aging_cycle: {path: '_(\d+)cycle\.csv$', number: true}
+        soh_group_pct: {path: '_(\d+)SOH_', number: true}
+    columns:
+      t_s: {col: Prog Time}
+      step_time_s: {col: Step Time}
+      step_number: {col: Step}
+      step_label: {col: Status}
+      cycle_number: {col: Cycle}
+      voltage_v: {col: Voltage}
+      current_a: {col: Current}
+      capacity_ah: {col: AhAccu}
+      energy_wh: {col: WhAccu}
+      power_w: {col: Watt}
+      temperature_c: {col: LogTemp001}
+
+  - label: EIS spectra (.xls without header)
+    produce: eis
+    where: {kind: excel, path: 'EIS_Test/Cell\d+_.*\.xls$'}
+    data_start: 0
+    cell: {path: 'Cell0*(\d+)_', template: 'Cell{}'}
+    test:
+      type: {const: eis}
+      ambient_temp_c: {path: '_(\d+)degC_', number: true}
+      attributes:
+        soc_pct: {path: '_(\d+)SOC_', number: true}
+        soh_group_pct: {path: '_(\d+)SOH_', number: true}
+    columns:
+      frequency_hz: {index: 0}
+      z_re_ohm: {index: 1}
+      z_im_ohm: {index: 2}
+
+  - label: capacity and SOH per aging cycle (CapacityVsCycleNumber.xlsx, one sheet per SOH group)
+    produce: cycle
+    where: {kind: excel, path: 'CapacityVsCycleNumber\.xlsx$'}
+    wide:
+      id_col: 0
+      fields: {'^Cap': discharge_ah, '^SOH$': soh_pct}
+    cell: {group: 'Cell (\d+)', template: 'Cell{}'}
+    test:
+      name: {const: aging cycles}
+      type: {const: cycle_aging}

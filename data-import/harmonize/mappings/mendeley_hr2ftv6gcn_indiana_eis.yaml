@@ -1,0 +1,23 @@
+# Dataset - 49: lithium-ion battery impedance data set (Indiana University Bloomington)
+dataset_key: mendeley:hr2ftv6gcn
+source_match: hr2ftv6gcn
+title: Lithium-ion battery impedance data set
+notes: >
+  One spectrum per cell potential (3.2 to 4.2 V). The dataset description maps the potentials to SOC 0, 3, 8,
+  40, 78 and 100 %. ML-regenerated-impedance-data.txt holds model predictions, not measurements, and is not loaded.
+cell_defaults: {}
+
+tables:
+  - label: measured EIS spectra
+    produce: eis
+    where: {kind: delimited, path: '(^|/)\d\.\d\.txt$'}
+    cell: {const: cell}
+    test:
+      type: {const: eis}
+      attributes:
+        potential_v: {path: '(\d\.\d)\.txt$', number: true}
+        soc_pct: {path: '(\d\.\d)\.txt$', map: {'3.2': 0, '3.4': 3, '3.6': 8, '3.8': 40, '4.0': 78, '4.2': 100}}
+    columns:
+      frequency_hz: {col: Freq}
+      z_re_ohm: {col: Zreal}
+      z_im_ohm: {col: Zimag}
