@@ -8,7 +8,10 @@ notes: >
   The .matfiles folder repeats the .csvfiles data in MATLAB format and is not loaded twice. WholeDataRealSOH.mat
   is not mapped yet. Capacity-check current is negative on discharge, as in the core convention. The EIS .xls
   files have no header: columns are frequency, Re(Z), Im(Z) (Im is positive at 10 kHz and negative at low
-  frequency, i.e. Im(Z) as measured).
+  frequency, i.e. Im(Z) as measured). The capacity-check files' Cycle column is 0 throughout, so it is not
+  mapped; per-cycle capacity comes from CapacityVsCycleNumber.xlsx. A few capacity-check files have a Prog Time
+  that steps back by about 2 s once at a step change (recorded that way by the tester); these show up as
+  "time goes backwards" in core.quality_issue.
 cell_defaults: {manufacturer: LG, model: M50, chemistry: NMC, form_factor: cylindrical 21700, nominal_capacity_ah: 5.0}
 
 tables:
@@ -27,7 +30,6 @@ tables:
       step_time_s: {col: Step Time}
       step_number: {col: Step}
       step_label: {col: Status}
-      cycle_number: {col: Cycle}
       voltage_v: {col: Voltage}
       current_a: {col: Current}
       capacity_ah: {col: AhAccu}

@@ -126,6 +126,8 @@ def ctx_value(spec, ctx):
         v = spec["map"].get(str(v), v)
     if v is not None and spec.get("number"):
         v = number(str(v).replace("n", "-", 1) if str(v).startswith("n") else str(v))
+        if v is not None and v.is_integer():
+            v = int(v)
     if v is not None and spec.get("template"):
         v = spec["template"].format(v)
     return v
