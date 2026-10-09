@@ -20,7 +20,10 @@ team can check them by hand. Re-running retries everything that is not yet 'list
 import argparse
 import html
 import os
+import json
 import re
+import shutil
+import subprocess
 import sys
 import time
 import urllib.parse
@@ -60,8 +63,18 @@ def get(url, **kw):
     return r
 
 
+def curl_json(url, params=None):
+    """Some sites (Mendeley Data) refuse Python's HTTP client but answer curl, which ships with Windows 10+."""
+    if params:
+        url += ("&" if "?" in url else "?") + urllib.parse.urlencode(params)
+    out = subprocess.run(["curl", "-sSfL", "--retry", "3", "-A", UA, url], capture_output=True, check=True)
+    return json.loads(out.stdout)
+
+
 def get_json(url, **kw):
     r = get(url, **kw)
+    if r.status_code == 403 and shutil.which("curl"):
+        return curl_json(url, kw.get("params"))
     r.raise_for_status()
     return r.json()
 
@@ -379,7 +392,7 @@ def main():
                                   GROUP BY 1 ORDER BY 1""").fetchall()
     print("\nsummary:")
     for status, n, nf, tb in summary:
-        print(f"  {status:8} {n:3} sources  {nf or 0:6} files  {(tb or 0) / 1e9:8.2f} GB")
+        print(f"  {status:8} {n:3} sources  {nf or 0:6} files  {float(tb or 0) / 1e9:8.2f} GB")
     print(f"done: tables are in schema {schema!r}")
 
 
