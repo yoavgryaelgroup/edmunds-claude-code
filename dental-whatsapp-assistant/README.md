@@ -111,7 +111,9 @@ templates (category *Utility*). Names must match `clinic.yaml`:
 | `waitlist_offer` | התפנה תור ל{{1}}, {{2}}. רוצה אותו? אפשר להשיב להודעה זו ונקבע. | רוצה · לא תודה |
 | `staff_alert` | פנייה מהעוזר הדיגיטלי: מטופל {{1}} – {{2}} | – |
 
-Staff numbers for alerts go in `staff_alert_numbers` in `clinic.yaml`.
+Staff alerts go to the numbers in `staff_alert_numbers` in `clinic.yaml`: the clinic phone, 051-564-6322. That
+number keeps using the WhatsApp (Business) app as today, so the assistant needs its **own** number on the Cloud API:
+a number registered on the Cloud API can no longer be used in the WhatsApp app, and can't send alerts to itself.
 
 ### Reminders
 

@@ -85,4 +85,6 @@ whatsapp_templates:
   reminder: appointment_reminder      # {{1}} name, {{2}} treatment, {{3}} day and time; buttons מאשר/ת · לשנות מועד · לבטל
   waitlist_offer: waitlist_offer      # {{1}} treatment, {{2}} day and time
   staff_alert: staff_alert            # {{1}} patient phone, {{2}} reason
-staff_alert_numbers: []               # staff WhatsApp numbers for handoffs, digits only, e.g. ["972501234567"]
+# Staff WhatsApp numbers for handoffs and urgent cases, digits only. This must NOT be the number the assistant
+# sends from (a WhatsApp number can't message itself, and a number on the Cloud API can't also use the WhatsApp app).
+staff_alert_numbers: ["972515646322"]   # the clinic phone, 051-564-6322
