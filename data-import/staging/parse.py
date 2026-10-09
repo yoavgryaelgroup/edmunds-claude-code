@@ -40,7 +40,7 @@ EXCEL_EXT = {"xlsx", "xls", "xlsm", "xlsb", "ods"}
 SKIP_EXT = {
     "pkl": "Python pickle: loading one can run code, so convert it in an isolated environment first",
     "pickle": "Python pickle: loading one can run code, so convert it in an isolated environment first",
-    "rar": "RAR archive: extract it with 7-Zip, then parse the extracted files",
+    "rar": "RAR archive that tar could not unpack here (Windows' tar.exe can): extract it, then parse the files",
     "7z": "7z archive: extract it with 7-Zip, then parse the extracted files",
 }
 NOT_DATA = {"pdf", "doc", "docx", "md", "m", "mlx", "py", "ipynb", "r", "png", "jpg", "jpeg", "gif", "tif",
@@ -481,7 +481,35 @@ def main():
             if not full.exists():
                 print(f"  missing on disk, skipped: {full}", flush=True)
                 continue
-            if ext == "zip" or ext in ("tar", "tar.gz", "tgz", "tar.bz2", "tar.xz"):
+            if ext == "rar":
+                # Python can't read RAR; the tar that ships with Windows 10+ (bsdtar) can.
+                import shutil
+                import subprocess
+                import tempfile
+                tmp = tempfile.mkdtemp(prefix="rar_")
+                try:
+                    ok = subprocess.run(["tar", "-xf", str(full), "-C", tmp], capture_output=True).returncode == 0
+                    members = [str(p.relative_to(tmp)).replace(os.sep, "/") for p in Path(tmp).rglob("*") if p.is_file()]
+                    if not ok or not members:
+                        if (file_id, "") not in done:
+                            parse_one(conn, file_id, "", "rar", None)
+                            totals["skipped"] += 1
+                        continue
+                    for name in members:
+                        if SKIP_NAME.search(name) or (file_id, name) in done:
+                            continue
+                        mext = extension(name)
+                        if args.only_ext and mext not in args.only_ext:
+                            continue
+                        status, n, detail = parse_one(conn, file_id, name, mext,
+                                                      lambda n=name: open(os.path.join(tmp, n), "rb"))
+                        totals[status] += 1
+                        totals["rows"] += n
+                        if status == "failed":
+                            print(f"  FAILED {path}!{name}: {detail[:200]}", flush=True)
+                finally:
+                    shutil.rmtree(tmp, ignore_errors=True)
+            elif ext == "zip" or ext in ("tar", "tar.gz", "tgz", "tar.bz2", "tar.xz"):
                 try:
                     arc = zipfile.ZipFile(full) if ext == "zip" else tarfile.open(full)
                 except (zipfile.BadZipFile, tarfile.TarError) as e:

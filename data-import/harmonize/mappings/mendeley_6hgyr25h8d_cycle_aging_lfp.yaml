@@ -1,0 +1,10 @@
+# Dataset-22 (cycle part): cycle aging of LFP/graphite 26650 cells (Sony / Murata, 3 Ah)
+dataset_key: mendeley:6hgyr25h8d
+source_match: 6hgyr25h8d
+title: "Data for: Analysis and modeling of cycle aging of a commercial LiFePO4/graphite cell"
+not_harmonized: >
+  The files are figure data, not measurements: Loadcollectives_*.mat hold X/Y axis matrices (capacity or
+  R_DC,10s against equivalent full cycles or time) for 35 load collectives, with their names in Legend_Vec;
+  EIS_*.mat hold fitted impedance parameters (R_i, Z_max, Z_min and their frequencies) and dVdQ_*.mat fitted
+  differential-voltage points. Turning the X/Y matrices into core.checkup needs a small dataset-specific reader
+  that pairs X_Axis_Data_Mat with Y_Axis_Data_Mat row by row; the staging tables hold everything for that.

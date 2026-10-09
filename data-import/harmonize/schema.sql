@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS dataset (
     notes          text,                           -- assumptions and caveats from the mapping file
     loaded_at      timestamptz
 );
+-- Added after the first release; ALTER keeps databases created earlier in step.
+ALTER TABLE dataset ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'harmonized';
 
 CREATE TABLE IF NOT EXISTS cell (
     cell_uid             text PRIMARY KEY,         -- dataset_key + ':' + the source's own cell label
@@ -81,6 +83,19 @@ CREATE TABLE IF NOT EXISTS eis_point (
     PRIMARY KEY (test_id, seq)
 );
 
+-- Capacity / resistance at checkpoints of an aging test (calendar or cycle aging), as reported by the dataset.
+CREATE TABLE IF NOT EXISTS checkup (
+    test_id         integer NOT NULL REFERENCES test ON DELETE CASCADE,
+    checkup_index   integer NOT NULL,              -- order of the checkpoint within the test
+    origin          text NOT NULL DEFAULT 'reported',
+    elapsed_h       double precision,              -- storage / test time at the checkpoint
+    efc             double precision,              -- equivalent full cycles at the checkpoint
+    capacity_ah     real,
+    resistance_ohm  real,
+    soh_pct         real,
+    PRIMARY KEY (test_id, checkup_index, origin)
+);
+
 -- Results of the physical-range checks run after each dataset is loaded.
 CREATE TABLE IF NOT EXISTS quality_issue (
     dataset_key  text NOT NULL REFERENCES dataset ON DELETE CASCADE,
@@ -100,3 +115,11 @@ SELECT c.cell_uid, c.dataset_key, d.catalog_refs, c.manufacturer, c.model, c.che
        (SELECT count(*) FROM eis_point e WHERE e.test_id = ANY (array_agg(t.test_id))) AS eis_points
 FROM cell c JOIN dataset d USING (dataset_key) LEFT JOIN test t USING (cell_uid)
 GROUP BY c.cell_uid, d.catalog_refs;
+
+-- Every mapped dataset: harmonized or not (and why), with what was loaded.
+CREATE OR REPLACE VIEW v_dataset_status AS
+SELECT d.dataset_key, d.catalog_refs, d.title, d.status,
+       (SELECT count(*) FROM cell c WHERE c.dataset_key = d.dataset_key) AS cells,
+       (SELECT count(*) FROM test t JOIN cell c USING (cell_uid) WHERE c.dataset_key = d.dataset_key) AS tests,
+       d.notes, d.loaded_at
+FROM dataset d;

@@ -15,6 +15,8 @@ Options:
     --platform NAME ...    only sources on these platforms (e.g. mendeley)
     --source ID ...        only these ingest.source ids
     --match TEXT ...       only sources whose URL contains one of these (e.g. a Mendeley dataset id)
+    --sample N             only the first N files of each source (by path), to try a mapping before
+                           downloading everything
     --workers N            parallel downloads (default 4)
 
 Re-running skips files already downloaded, retries the ones that failed, and continues where it stopped. Nothing is ever deleted except a
@@ -133,6 +135,7 @@ def main():
     ap.add_argument("--platform", nargs="*")
     ap.add_argument("--source", nargs="*", type=int)
     ap.add_argument("--match", nargs="*", help="only sources whose URL contains one of these")
+    ap.add_argument("--sample", type=int, help="only the first N files of each source")
     ap.add_argument("--workers", type=int, default=4)
     args = ap.parse_args()
     db = os.environ.get("DATABASE_URL")
@@ -155,15 +158,17 @@ def main():
         rows = conn.execute("""
             SELECT f.file_id, f.path, f.size_bytes, f.checksum, f.checksum_algo, f.download_url,
                    s.source_id, s.platform, s.url
-            FROM remote_file f JOIN source s USING (source_id)
+            FROM (SELECT *, row_number() OVER (PARTITION BY source_id ORDER BY path) AS nth FROM remote_file) f
+            JOIN source s USING (source_id)
             LEFT JOIN raw_file r USING (file_id)
             WHERE s.status = 'listed' AND f.download_url IS NOT NULL
+              AND (%(sample)s::int IS NULL OR f.nth <= %(sample)s)
               AND (r.file_id IS NULL OR r.status = 'failed')
               AND (%(platforms)s::text[] IS NULL OR s.platform = ANY(%(platforms)s))
               AND (%(sources)s::int[] IS NULL OR s.source_id = ANY(%(sources)s))
               AND (%(match)s::text[] IS NULL OR s.url ILIKE ANY(%(match)s))
             ORDER BY s.source_id, f.file_id""",
-            {"platforms": args.platform, "sources": args.source, "match": match}).fetchall()
+            {"platforms": args.platform, "sources": args.source, "match": match, "sample": args.sample}).fetchall()
         jobs = [dict(file_id=r[0], path=r[1], size=r[2], checksum=r[3], algo=r[4], url=r[5],
                      folder=source_folder(r[7], r[6], r[8])) for r in rows]
         need = sum(j["size"] or 0 for j in jobs)

@@ -32,6 +32,7 @@ TIMESERIES = ["t_s", "step_time_s", "ts", "cycle_number", "step_number", "step_l
               "chamber_temp_c", "capacity_ah", "energy_wh", "power_w", "soc"]
 EIS = ["frequency_hz", "z_re_ohm", "z_im_ohm"]
 CYCLE = ["cycle_number", "charge_ah", "discharge_ah", "soh_pct", "temp_max_c"]
+CHECKUP = ["checkup_index", "elapsed_h", "efc", "capacity_ah", "resistance_ohm", "soh_pct"]
 INT_FIELDS = {"cycle_number", "step_number"}
 TEXT_FIELDS = {"step_label"}
 TIME_FIELDS = {"ts"}
@@ -89,7 +90,14 @@ def convert(raw, spec, field, decimal):
         return v or None
     if field in TIME_FIELDS or parse == "datetime":
         return timestamp(raw)
-    x = hms_seconds(raw) if parse == "hms" else number(raw, decimal)
+    if parse in ("complex_re", "complex_im"):
+        try:
+            z = complex((raw or "").strip().replace(" ", "").strip("()"))
+        except ValueError:
+            return None
+        x = z.real if parse == "complex_re" else z.imag
+    else:
+        x = hms_seconds(raw) if parse == "hms" else number(raw, decimal)
     if x is None:
         return None
     x = x * spec.get("scale", 1) * spec.get("sign", 1) + spec.get("offset", 0)
@@ -99,27 +107,35 @@ def convert(raw, spec, field, decimal):
 # ---------------------------------------------------------------- table context values (cell, test fields)
 
 def ctx_value(spec, ctx):
-    """Evaluate a value spec against a table: {const}, {path: regex}, {name: regex}, {attr: key}, optional map/number."""
+    """Evaluate a value spec against a table (or a column of a wide table):
+    {const}, {path: regex}, {name: regex}, {header: regex}, {attr: key}, {path_map: [[regex, value], ...]},
+    with optional default, map, number and template ('{}' or '{0}-{1}' for several regex groups)."""
     if spec is None:
         return None
     if not isinstance(spec, dict):
         return spec
-    v = None
+    v, groups = None, ()
     if "const" in spec:
         v = spec["const"]
-    elif "path" in spec:
-        m = re.search(spec["path"], ctx["path"])
-        v = (m.group(1) if m and m.groups() else m.group(0)) if m else None
-    elif "name" in spec:
-        m = re.search(spec["name"], ctx["name"])
-        v = (m.group(1) if m and m.groups() else m.group(0)) if m else None
+    elif any(k in spec for k in ("path", "name", "header")):
+        key = next(k for k in ("path", "name", "header") if k in spec)
+        m = re.search(spec[key], ctx.get(key) or "")
+        if m:
+            groups = m.groups()
+            v = groups[0] if groups else m.group(0)
     elif "attr" in spec:
-        v = (ctx["attributes"] or {}).get(spec["attr"])
+        v = (ctx.get("attributes") or {}).get(spec["attr"])
     elif "path_map" in spec:
         for pattern, value in spec["path_map"]:
             if re.search(pattern, ctx["path"]):
                 v = value
                 break
+    if v is not None and "sibling" in spec and groups:
+        # Value from another table of the same file: sibling names it ('{0}.cell'), the last regex group is the row.
+        v = ctx["lookup"](spec["sibling"].format(*groups), int(groups[-1]))
+        if v is not None and spec.get("template"):
+            v = spec["template"].format(*groups, v)
+            groups, spec = (), {k: x for k, x in spec.items() if k != "template"}
     if v is None:
         v = spec.get("default")
     if v is not None and "map" in spec:
@@ -129,7 +145,7 @@ def ctx_value(spec, ctx):
         if v is not None and v.is_integer():
             v = int(v)
     if v is not None and spec.get("template"):
-        v = spec["template"].format(v)
+        v = spec["template"].format(*(groups if len(groups) > 1 else (v,)))
     return v
 
 
@@ -201,11 +217,12 @@ class Loader:
     def tables(self, rule):
         w = rule.get("where", {})
         rows = self.conn.execute("""
-            SELECT table_id, coalesce(nullif(member_path, ''), file_path), name, kind, columns, units,
-                   data_start_row, decimal_mark, attributes
-            FROM staging.v_tables WHERE source_id = ANY (%s) ORDER BY table_id""", (self.ids,)).fetchall()
+            SELECT v.table_id, coalesce(nullif(v.member_path, ''), v.file_path), v.name, v.kind, v.columns, v.units,
+                   v.data_start_row, v.decimal_mark, v.attributes, s.unit_id
+            FROM staging.v_tables v JOIN staging.source_table s USING (table_id)
+            WHERE v.source_id = ANY (%s) ORDER BY v.table_id""", (self.ids,)).fetchall()
         out = []
-        for tid, path, name, kind, cols, units, start, dec, attrs in rows:
+        for tid, path, name, kind, cols, units, start, dec, attrs, unit_id in rows:
             if w.get("kind") and kind != w["kind"]:
                 continue
             if w.get("path") and not re.search(w["path"], path):
@@ -218,8 +235,17 @@ class Loader:
             if any(h.strip().lower() not in norm for h in w.get("has_columns", [])):
                 continue
             out.append(dict(table_id=tid, path=path, name=name or "", kind=kind, columns=cols or [], units=units or [],
-                            data_start=rule.get("data_start", start), decimal=dec or ".", attributes=attrs))
+                            data_start=rule.get("data_start", start), decimal=dec or ".", attributes=attrs,
+                            lookup=lambda tname, row, u=unit_id: self.lookup(u, tname, row)))
         return out
+
+    def lookup(self, unit_id, table_name, row):
+        """First cell of row `row` (0-based, after the header) of another table in the same file."""
+        r = self.conn.execute("""SELECT c.cells[1] FROM staging.source_table t JOIN staging.cell_row c USING (table_id)
+                                 WHERE t.unit_id = %s AND t.name = %s
+                                 ORDER BY c.row_index OFFSET %s + coalesce(t.data_start_row, 0) LIMIT 1""",
+                              (unit_id, table_name, row)).fetchone()
+        return r[0].strip() if r and r[0] else None
 
     def rows(self, t):
         start = t["data_start"] or 0
@@ -239,10 +265,22 @@ class Loader:
 
     def load_long(self, rule, t, fields_allowed, target):
         cols = rule["columns"]
-        idx = {f: (self.column_index(t, spec, f), spec) for f, spec in cols.items() if f in fields_allowed}
         unknown = set(cols) - set(fields_allowed)
         if unknown:
             raise ValueError(f"{self.path}: fields {sorted(unknown)} are not valid for {rule['produce']}")
+        # Each field comes from a column (col / index), a value of the table itself (ctx, e.g. a cycle number
+        # in the table name), or the row's position (row_number).
+        getters = []
+        for f, spec in cols.items():
+            if "col" in spec or "index" in spec:
+                getters.append(("col", self.column_index(t, spec, f), spec, f))
+            elif "ctx" in spec:
+                v = ctx_value(spec["ctx"], t)
+                getters.append(("const", int(v) if f in INT_FIELDS and v is not None else v, spec, f))
+            elif spec.get("row_number"):
+                getters.append(("row", spec.get("start", 0), spec, f))
+            else:
+                raise ValueError(f"{self.path}: field {f} needs col, index, ctx or row_number")
         cell_spec = rule["cell"]
         cell_col = self.column_index(t, cell_spec, "cell") if "col" in cell_spec or "index" in cell_spec else None
         ctx = t
@@ -250,22 +288,29 @@ class Loader:
         fixed_cell = None if cell_col is not None else ctx_value(cell_spec, ctx)
         if cell_col is None and fixed_cell is None:
             raise ValueError(f"could not work out the cell for {t['path']} {t['name']}")
-        for (cells,) in self.rows(t):
+        for r, (cells,) in enumerate(self.rows(t)):
             label = fixed_cell if cell_col is None else (cells[cell_col].strip() if cell_col < len(cells) else "")
             if not label:
                 continue
-            rec = [convert(cells[i] if i < len(cells) else "", spec, f, t["decimal"]) for f, (i, spec) in idx.items()]
-            if all(v is None for v in rec):
+            rec = []
+            for kind, arg, spec, f in getters:
+                if kind == "col":
+                    rec.append(convert(cells[arg] if arg < len(cells) else "", spec, f, t["decimal"]))
+                elif kind == "const":
+                    rec.append(arg)
+                else:
+                    rec.append(r + arg)
+            if all(rec[k] is None for k, g in enumerate(getters) if g[0] == "col"):
                 continue
             per_test[label].append(rec)
-        fields = list(idx)
+        fields = [g[3] for g in getters]
         for label, recs in per_test.items():
             cell_uid = self.cell(label)
             name = ctx_value(rule.get("test", {}).get("name"), ctx) or (t["path"] + (f" :: {t['name']}" if t["name"] and t["name"] != t["path"].rsplit("/", 1)[-1] else ""))
             test_id = self.test(cell_uid, name, rule, ctx)
-            if target == "cycle":
-                with self.conn.cursor().copy(sql.SQL("COPY cycle (test_id, origin, {}) FROM STDIN").format(
-                        sql.SQL(", ").join(map(sql.Identifier, fields)))) as cp:
+            if target in ("cycle", "checkup"):
+                with self.conn.cursor().copy(sql.SQL("COPY {} (test_id, origin, {}) FROM STDIN").format(
+                        sql.Identifier(target), sql.SQL(", ").join(map(sql.Identifier, fields)))) as cp:
                     for r in recs:
                         cp.write_row([test_id, "reported", *r])
             else:
@@ -276,6 +321,40 @@ class Loader:
                     for k, r in enumerate(recs):
                         cp.write_row([test_id, base + k, *r])
             self.counts[target] += len(recs)
+
+    # -------------------------------------------------- produce: checkup (wide layout, one column per test)
+
+    def load_wide_tests(self, rule, t):
+        """Rows are checkpoints (storage time or cycles), each column one test condition / cell."""
+        w = rule["wide_tests"]
+        id_col = w.get("id_col", 0)
+        names = [(c or "").strip() for c in t["columns"]]
+        for j, header in enumerate(names):
+            if j == id_col or not header or (w.get("columns") and not re.search(w["columns"], header)):
+                continue
+            col_ctx = dict(t, header=header)
+            label = ctx_value(rule["cell"], col_ctx)
+            if not label:
+                continue
+            recs = []
+            for k, (cells,) in enumerate(self.rows(t)):
+                x = number(cells[id_col] if id_col < len(cells) else "", t["decimal"])
+                v = number(cells[j] if j < len(cells) else "", t["decimal"])
+                if x is None or v is None:
+                    continue
+                recs.append((k, x * w.get("id_scale", 1), v * w.get("value_scale", 1)))
+            if not recs:
+                continue
+            name = ctx_value(rule.get("test", {}).get("name"), col_ctx) or f"{t['path']} :: {header}"
+            test_id = self.test(self.cell(label), name, rule, col_ctx)
+            # Upsert: several files can each add one measure (capacity, resistance) to the same checkpoints.
+            with self.conn.cursor() as cur:
+                cur.executemany(sql.SQL(
+                    "INSERT INTO checkup (test_id, checkup_index, origin, {a}, {b}) VALUES (%s, %s, 'reported', %s, %s) "
+                    "ON CONFLICT (test_id, checkup_index, origin) DO UPDATE SET {a} = EXCLUDED.{a}, {b} = EXCLUDED.{b}"
+                ).format(a=sql.Identifier(w["id_field"]), b=sql.Identifier(w["value_field"])),
+                    [(test_id, k, x, v) for k, x, v in recs])
+            self.counts["checkup"] += len(recs)
 
     # -------------------------------------------------- produce: cycle (wide layout, one column group per cell)
 
@@ -376,6 +455,11 @@ class Loader:
 
     def run(self):
         self.start()
+        if self.m.get("not_harmonized"):
+            # Recorded with the reason, so the catalog shows why this dataset has no core rows.
+            self.conn.execute("UPDATE dataset SET status = 'not_harmonized', notes = %s, loaded_at = now() "
+                              "WHERE dataset_key = %s", (self.m["not_harmonized"].strip(), self.key))
+            return
         for rule in self.m["tables"]:
             produce = rule["produce"]
             tables = self.tables(rule)
@@ -390,6 +474,10 @@ class Loader:
                     self.load_wide_cycles(rule, t)
                 elif produce == "cycle":
                     self.load_long(rule, t, CYCLE, "cycle")
+                elif produce == "checkup" and rule.get("wide_tests"):
+                    self.load_wide_tests(rule, t)
+                elif produce == "checkup":
+                    self.load_long(rule, t, CHECKUP, "checkup")
                 elif produce == "cell_attributes":
                     self.load_cell_attributes(rule, t)
                 else:
@@ -424,8 +512,12 @@ def main():
                 print(f"FAILED {path}: {type(e).__name__}: {e}", flush=True)
                 continue
             c = loader.counts
+            if mapping.get("not_harmonized"):
+                print(f"{mapping['dataset_key']}: recorded as not harmonized ({mapping['not_harmonized'].strip()[:80]})",
+                      flush=True)
+                continue
             print(f"{mapping['dataset_key']}: {len(loader.cells)} cells, {c['tests']} tests, {c['timeseries']:,} samples, "
-                  f"{c['eis_point']:,} EIS points, {c['cycle']:,} reported cycles, {c['quality_issues']} quality issues",
+                  f"{c['eis_point']:,} EIS points, {c['cycle']:,} reported cycles, {c['checkup']:,} checkups, {c['quality_issues']} quality issues",
                   flush=True)
     print(f"done: tables are in schema {schema!r}")
 
