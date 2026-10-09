@@ -215,16 +215,26 @@ def sniff(lines):
     lines = [l for l in lines if l.strip()][:200]
     if not lines:
         return None, "."
-    best, best_score = None, 0.0
-    for d in [",", ";", "\t", "|"]:
+    def consistency(d):
         counts = [l.count(d) for l in lines]
         nonzero = [c for c in counts if c]
         if not nonzero:
-            continue
-        mode, freq = Counter(nonzero).most_common(1)[0]
-        score = freq / len(lines) * min(mode, 5)
-        if score > best_score:
-            best, best_score = d, score
+            return 0, 0.0
+        mode = Counter(nonzero).most_common(1)[0][0]
+        return mode, len(nonzero) / len(lines)  # share of lines that contain the delimiter at all
+
+    best, best_score = None, 0.0
+    # A tab, semicolon or pipe on (nearly) every line wins over commas: files exported with a European
+    # locale use ';' or tab between columns and ',' as the decimal mark.
+    for d in ["\t", ";", "|"]:
+        mode, share = consistency(d)
+        if mode and share >= 0.8:
+            best, best_score = d, share * min(mode, 5)
+            break
+    if best is None:
+        mode, share = consistency(",")
+        if mode:
+            best, best_score = ",", share * min(mode, 5)
     if best is None or best_score < 0.5:
         tokens = [len(l.split()) for l in lines]
         mode, freq = Counter(tokens).most_common(1)[0]
@@ -244,6 +254,11 @@ def parse_text(w, name, opener):
     enc = decode_head(head)
     sample_lines = head.decode(enc, errors="replace").splitlines()[:300]
     delim, decimal = sniff(sample_lines)
+    if delim in (",", "whitespace"):
+        # Prose (readme files) contains commas and spaces too: with no rows that look like data, it's a document.
+        split = [l.split() if delim == "whitespace" else next(csv.reader([l], delimiter=",")) for l in sample_lines if l.strip()]
+        if detect_layout(split, decimal) == (None, None, None):
+            delim = None
     if delim is None:
         with opener() as fh:
             text = io.TextIOWrapper(fh, encoding=enc, errors="replace").read()
@@ -430,6 +445,7 @@ def main():
     ap.add_argument("--platform", nargs="*")
     ap.add_argument("--source", nargs="*", type=int)
     ap.add_argument("--reparse", action="store_true")
+    ap.add_argument("--only-ext", nargs="*", help="only files with these extensions (e.g. csv txt)")
     args = ap.parse_args()
     db = os.environ.get("DATABASE_URL")
     if not db:
@@ -480,6 +496,8 @@ def main():
                         if SKIP_NAME.search(name) or (file_id, name) in done:
                             continue
                         mext = extension(name)
+                        if args.only_ext and mext not in args.only_ext:
+                            continue
                         if mext in ("zip", "tar", "tar.gz", "tgz"):
                             conn.execute("""INSERT INTO parse_unit (file_id, member_path, extension, parser_version,
                                                 status, detail) VALUES (%s, %s, %s, %s, 'skipped', %s)
@@ -495,7 +513,7 @@ def main():
                         if status == "failed":
                             print(f"  FAILED {path}!{name}: {detail[:200]}", flush=True)
             else:
-                if (file_id, "") in done:
+                if (file_id, "") in done or (args.only_ext and ext not in args.only_ext):
                     continue
                 status, n, detail = parse_one(conn, file_id, "", ext, lambda f=full: open(f, "rb"))
                 totals[status] += 1

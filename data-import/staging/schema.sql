@@ -65,7 +65,7 @@ CREATE OR REPLACE VIEW v_tables AS
 SELECT t.table_id, s.source_id, s.platform,
        (SELECT string_agg(DISTINCT d.local_ref, ', ') FROM catalog.dataset d WHERE d.dataset_id = ANY (s.dataset_ids)) AS local_refs,
        f.path AS file_path, u.member_path, t.name, t.kind, t.n_rows, t.n_cols,
-       t.header_row, t.units_row, t.data_start_row, t.delimiter, t.decimal_mark, t.columns, t.units
+       t.header_row, t.units_row, t.data_start_row, t.delimiter, t.decimal_mark, t.columns, t.units, t.attributes
 FROM source_table t
 JOIN parse_unit u USING (unit_id)
 JOIN ingest.remote_file f ON f.file_id = u.file_id
