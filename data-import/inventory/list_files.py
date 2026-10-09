@@ -314,6 +314,39 @@ def html_links(url):
     return (html.unescape(re.sub(r"\s+", " ", title.group(1))).strip() if title else None), files
 
 
+NASA_S3 = "https://phm-datasets.s3.amazonaws.com/NASA/"
+# PCoE repository sets used by the workbook (Datasets 1-4 and 63): 5, 11, 15, 16 and 21.
+NASA_KNOWN = {"5": "5. Battery Data Set.zip"}  # still on the server, no longer linked from the page
+
+
+def nasa(url):
+    """The PCoE page links every NASA prognostics dataset; keep the battery ones."""
+    title, files = html_links(url)
+    files = [dict(x, path=x["path"].replace("+", " ")) for x in files if "batter" in x["path"].lower()]
+    have = {x["path"].split(".")[0] for x in files}
+    for num, name in NASA_KNOWN.items():
+        if num not in have:
+            link = NASA_S3 + urllib.parse.quote(name).replace("%20", "+")
+            h = session.head(link, allow_redirects=True, timeout=60)
+            if h.ok:
+                files.append(f(name, h.headers.get("Content-Length"), url=link))
+    found = {x["path"].split(".")[0] for x in files}
+    missing = [n for n in ("5", "11", "15", "16", "21") if n not in found]
+    if missing:
+        raise PartialListing(title, files, "NASA sets " + ", ".join(missing) + " (Small Satellite Power Simulation, "
+                             "Accelerated Battery Life Testing) are not linked from the repository page; "
+                             "check them by hand")
+    return title, files
+
+
+class PartialListing(Exception):
+    """Some files were listed, but the adapter knows the listing is incomplete."""
+
+    def __init__(self, title, files, detail):
+        super().__init__(detail)
+        self.title, self.files, self.detail = title, files, detail
+
+
 MANUAL = {
     "ieee_dataport": "IEEE DataPort needs a signed-in IEEE account to see and download files",
     "onedrive": "OneDrive folder needs a Microsoft sign-in",
@@ -326,7 +359,7 @@ MANUAL = {
 }
 ADAPTERS = {
     "mendeley": mendeley, "zenodo": zenodo, "figshare": figshare, "dryad": dryad, "osf": osf,
-    "invenio_rdm": invenio_rdm, "dspace": dspace_depositonce, "github": github,
+    "invenio_rdm": invenio_rdm, "dspace": dspace_depositonce, "github": github, "nasa": nasa,
 }
 
 
@@ -372,6 +405,8 @@ def main():
             try:
                 title, files = list_source(url, platform)
                 status, detail = ("listed", None) if files else ("empty", "the repository returned no files")
+            except PartialListing as e:
+                title, files, status, detail = e.title, e.files, "listed", e.detail
             except Manual as e:
                 title, files, status, detail = None, [], "manual", str(e)
             except Exception as e:  # keep going; the error is stored and the source retried next run
