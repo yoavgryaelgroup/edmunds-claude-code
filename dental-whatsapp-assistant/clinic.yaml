@@ -1,0 +1,88 @@
+# Clinic settings for the WhatsApp booking assistant. Everything the assistant knows about the clinic is here;
+# edit this file (not the code) to change hours, treatments or wording. Restart the server after a change.
+
+clinic:
+  name_he: "מרפאת השיניים של ד״ר טובה אברך"   # TODO: confirm the Hebrew spelling of the doctor's name
+  doctor_he: "ד״ר טובה אברך"                 # TODO: confirm
+  address_he: ""                               # TODO: street, city, floor
+  parking_he: ""                               # TODO: where to park
+  phone: "051-564-6322"                        # clinic phone (+972 51-564-6322), given for urgent cases and when anything fails
+  notes_he: "נא להגיע 10 דקות לפני התור הראשון ולהביא רשימת תרופות קבועות."
+
+timezone: Asia/Jerusalem
+
+# Opening hours per day (24 h clock). A day that is missing or empty is closed.
+hours:
+  sun: ["14:00-18:00"]
+  mon: ["14:00-18:00"]
+  tue: []
+  wed: ["09:00-13:00"]
+  thu: ["09:00-13:00"]
+  fri: ["08:00-12:00"]
+  sat: []
+
+scheduling:
+  chairs: 1                    # one patient at a time
+  buffer_minutes: 10           # cleaning and sterilisation after every appointment
+  slot_step_minutes: 15        # start times offered on a 15-minute grid
+  min_notice_minutes: 120      # no booking less than 2 hours ahead
+  max_days_ahead: 60
+  offer_per_day: 2             # spread the offered times over several days
+  # One urgent slot held in each session; released for ordinary booking this many minutes before it starts
+  # (more than min_notice_minutes, so a released slot can still be booked).
+  urgent_hold:
+    release_minutes_before: 180
+    windows:
+      sun: ["16:00-16:30"]
+      mon: ["16:00-16:30"]
+      wed: ["11:00-11:30"]
+      thu: ["11:00-11:30"]
+      fri: ["10:00-10:30"]
+  # Israeli holidays come from Google's public Jewish-holidays calendar. A holiday whose name contains one of the
+  # keywords closes the clinic for the day; its eve ("Erev ...") closes the clinic from eve_closes_at.
+  holidays:
+    calendar_id: "en.jewish#holiday@group.v.calendar.google.com"
+    closed_keywords: ["Rosh Hashana", "Yom Kippur", "Sukkot I", "Shmini Atzeret", "Simchat Torah", "Pesach I",
+                      "Pesach VII", "Shavuot", "Yom HaAtzma'ut", "Tish'a B'Av"]
+    eve_closes_at: "12:00"
+  closed_dates: []             # extra closures, e.g. ["2026-12-24"]
+  # New patients' bookings stay tentative until they tap "confirm" in the reminder; an unconfirmed booking is
+  # released this many hours before it starts.
+  confirm_deadline_hours: 12
+  reminder_hours_before: 24
+
+# Appointment types. self_book: yes = the assistant books it; plan = only for a patient whose treatment plan
+# includes it (the assistant hands off to staff otherwise); no = staff only.
+# new_patients: true = a new patient may book it. only_between: keep long treatments at the start of a session.
+# min_notice_minutes overrides the general notice for one type (urgent cases can come in sooner).
+appointment_types:
+  checkup:        {name_he: "בדיקה תקופתית",              line: hygiene,      minutes: 30, self_book: yes}
+  cleaning:       {name_he: "ניקוי אבנית (שיננית)",       line: hygiene,      minutes: 45, self_book: yes}
+  checkup_clean:  {name_he: "בדיקה + ניקוי אבנית",       line: hygiene,      minutes: 60, self_book: yes}
+  filling:        {name_he: "סתימה",                      line: conservative, minutes: 45, self_book: plan}
+  root_canal:     {name_he: "טיפול שורש",                 line: conservative, minutes: 90, self_book: plan,
+                   only_between: ["09:00-10:00", "14:00-15:00", "08:00-09:00"]}
+  restorative_consult: {name_he: "ייעוץ כתר / גשר / שתל",   line: restorative, minutes: 30, self_book: yes}
+  restorative_treatment: {name_he: "טיפול שיקומי (כתר / גשר / שתל)", line: restorative, minutes: 60, self_book: no}
+  aesthetic_consult: {name_he: "ייעוץ הלבנה / אסתטיקה",      line: aesthetics,  minutes: 30, self_book: yes}
+  whitening:      {name_he: "הלבנת שיניים",               line: aesthetics,   minutes: 90, self_book: plan,
+                   only_between: ["09:00-10:00", "14:00-15:00", "08:00-09:00"]}
+  first_visit:    {name_he: "ביקור ראשון (בדיקה וייעוץ)",  line: new_patient,  minutes: 45, self_book: yes, new_patients: true}
+  urgent:         {name_he: "תור דחוף (כאב / חירום)",      line: urgent,       minutes: 30, self_book: yes, new_patients: true, urgent: true,
+                   min_notice_minutes: 30}
+
+lines_he:
+  hygiene: "בדיקות וטיפולי היגיינה"
+  conservative: "טיפולים משמרים (סתימות, טיפולי שורש)"
+  restorative: "שיקום הפה (כתרים, גשרים, שתלים)"
+  aesthetics: "אסתטיקה (הלבנה, עיצוב חיוך)"
+  new_patient: "מטופל/ת חדש/ה"
+  urgent: "כאב או מקרה דחוף"
+
+# WhatsApp message templates (must be approved by Meta, in Hebrew) for messages the clinic starts.
+whatsapp_templates:
+  language: he
+  reminder: appointment_reminder      # {{1}} name, {{2}} treatment, {{3}} day and time; buttons מאשר/ת · לשנות מועד · לבטל
+  waitlist_offer: waitlist_offer      # {{1}} treatment, {{2}} day and time
+  staff_alert: staff_alert            # {{1}} patient phone, {{2}} reason
+staff_alert_numbers: []               # staff WhatsApp numbers for handoffs, digits only, e.g. ["972501234567"]
