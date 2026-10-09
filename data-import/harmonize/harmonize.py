@@ -133,6 +133,8 @@ def ctx_value(spec, ctx):
     if v is not None and "sibling" in spec and groups:
         # Value from another table of the same file: sibling names it ('{0}.cell'), the last regex group is the row.
         v = ctx["lookup"](spec["sibling"].format(*groups), int(groups[-1]))
+        if v is not None and spec.get("strip"):
+            v = v.strip(spec["strip"]) or None
         if v is not None and spec.get("template"):
             v = spec["template"].format(*groups, v)
             groups, spec = (), {k: x for k, x in spec.items() if k != "template"}

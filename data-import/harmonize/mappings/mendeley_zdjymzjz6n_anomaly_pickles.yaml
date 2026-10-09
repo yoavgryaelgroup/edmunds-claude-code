@@ -1,0 +1,8 @@
+# Dataset-50: Anomaly Data of Lithium-ion Batteries
+dataset_key: mendeley:zdjymzjz6n
+source_match: zdjymzjz6n
+title: "Anomaly Data of Lithium-ion Batteries"
+not_harmonized: >
+  The data is distributed as Python pickle files. Loading a pickle runs code from the file, so the pipeline
+  never opens them (staging skips them). Converting them to CSV in a sandbox first would make this dataset
+  mappable.

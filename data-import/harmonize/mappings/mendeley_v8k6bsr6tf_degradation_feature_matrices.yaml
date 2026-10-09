@@ -1,0 +1,9 @@
+# Dataset-52: Battery Degradation Datasets (Two Types of Lithium-ion Batteries)
+dataset_key: mendeley:v8k6bsr6tf
+source_match: v8k6bsr6tf
+title: "Battery Degradation Datasets (Two Types of Lithium-ion Batteries)"
+not_harmonized: >
+  Each sheet (one per cell) is a feature matrix: one row per cycle, one column per voltage on a fixed grid
+  (3.00 V, 3.01 V, ... for Dataset#3; 2.50 V ... for Dataset#5). These are values interpolated at those
+  voltages for every cycle, not raw measurements or capacities, so there is nothing for core.timeseries or
+  core.cycle. The staging tables keep it all.

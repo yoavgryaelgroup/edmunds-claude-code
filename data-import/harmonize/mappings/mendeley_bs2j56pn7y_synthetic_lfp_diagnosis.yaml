@@ -1,0 +1,6 @@
+# Dataset-8: Graphite//LFP synthetic training diagnosis dataset
+dataset_key: mendeley:bs2j56pn7y
+source_match: bs2j56pn7y
+title: "Graphite//LFP synthetic training diagnosis dataset"
+not_harmonized: >
+  Synthetic training data (simulated voltage curves for degradation-mode diagnosis), not measurements.

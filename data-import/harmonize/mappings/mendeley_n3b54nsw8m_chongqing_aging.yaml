@@ -25,10 +25,10 @@ tables:
     where: {kind: mat, table: '^Dataset[1-4](_Dataset2)?\.Capacity\[\d+\]$'}
     cell: {name: '^(Dataset[1-4](?:_Dataset2)?)\.Capacity\[(\d+)\]$', sibling: '{0}.cell', template: '{0}:{2}'}
     test:
-      name: {name: '^(Dataset[1-4](?:_Dataset2)?)\.Capacity\[(\d+)\]$', sibling: '{0}.Workingprofile', template: 'aging {2}'}
+      name: {name: '^(Dataset[1-4](?:_Dataset2)?)\.Capacity\[(\d+)\]$', sibling: '{0}.Workingprofile', strip: ':', template: 'aging {2}'}
       type: {const: cycle_aging}
       attributes:
-        profile: {name: '^(Dataset[1-4](?:_Dataset2)?)\.Capacity\[(\d+)\]$', sibling: '{0}.Workingprofile'}
+        profile: {name: '^(Dataset[1-4](?:_Dataset2)?)\.Capacity\[(\d+)\]$', sibling: '{0}.Workingprofile', strip: ':'}
     columns:
       cycle_number: {row_number: true, start: 1}
       discharge_ah: {col: value}

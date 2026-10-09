@@ -1,0 +1,9 @@
+# Dataset-46: Mechanically Induced Thermal Runaway for Li-ion Batteries
+dataset_key: mendeley:sn2kv34r4h
+source_match: sn2kv34r4h
+title: "Mechanically Induced Thermal Runaway for Li-ion Batteries"
+not_harmonized: >
+  Nail / indentation abuse tests: penetrator force (N or lb), displacement (mm), cell voltage and surface
+  temperatures during mechanical failure of 1500 mAh cells at several SOCs, plus a summary sheet of observed
+  scores. There are no charge/discharge or impedance measurements, so it is outside the cycling / EIS model; a
+  dedicated abuse-test table would be needed. The staging tables keep it all.

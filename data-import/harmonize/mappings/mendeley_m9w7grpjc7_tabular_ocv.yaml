@@ -1,0 +1,9 @@
+# Dataset-31: Dataset for Tabular OCV modeling
+dataset_key: mendeley:m9w7grpjc7
+source_match: m9w7grpjc7
+title: "Dataset for Tabular OCV modeling"
+not_harmonized: >
+  Each sheet (e.g. C1202_OCV) has 18 columns without a header row. The likely meaning (column 3 test time, 4
+  step time, 6 step index, 7 current, 8 voltage, in the style of an Arbin export) can't be confirmed from the
+  files or the description, and guessing would put mislabelled data in core. A mapping can be added once the
+  column order is confirmed with the authors.
