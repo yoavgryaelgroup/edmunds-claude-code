@@ -4,7 +4,7 @@
 clinic:
   name_he: "מרפאת השיניים של ד״ר טובה אברך"   # TODO: confirm the Hebrew spelling of the doctor's name
   doctor_he: "ד״ר טובה אברך"                 # TODO: confirm
-  address_he: "רחוב רבוצקי 2 (או 2ד), רעננה"   # TODO: confirm 2 or 2ד, and add the floor if relevant
+  address_he: "רחוב רבוצקי 2, רעננה"
   parking_he: ""                               # TODO: where to park
   phone: "051-564-6322"                        # clinic phone (+972 51-564-6322), given for urgent cases and when anything fails
   notes_he: "נא להגיע 10 דקות לפני התור הראשון ולהביא רשימת תרופות קבועות."
