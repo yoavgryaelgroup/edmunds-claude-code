@@ -2,8 +2,8 @@
 # edit this file (not the code) to change hours, treatments or wording. Restart the server after a change.
 
 clinic:
-  name_he: "מרפאת השיניים של ד״ר טובה אברך"   # TODO: confirm the Hebrew spelling of the doctor's name
-  doctor_he: "ד״ר טובה אברך"                 # TODO: confirm
+  name_he: "מרפאת השיניים של ד״ר טובה אברך"
+  doctor_he: "ד״ר טובה אברך"
   address_he: "רחוב רבוצקי 2, רעננה"
   parking_he: "ניתן להחנות ברחוב, במקומות המסומנים בכחול-לבן או באזורים האפורים."
   phone: "051-564-6322"                        # clinic phone (+972 51-564-6322), given for urgent cases and when anything fails
