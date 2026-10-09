@@ -82,8 +82,10 @@ Tip: start with a **copy** of the clinic calendar for testing.
 ## 3. Connect WhatsApp
 
 1. Create a Meta developer app (https://developers.facebook.com → My apps → Create app → Business) and add the
-   **WhatsApp** product. Meta gives a test number; for the real clinic number, verify the business and register the
-   number (it can't stay on the WhatsApp Business phone app at the same time).
+   **WhatsApp** product. Meta gives a test number to start with. For the real assistant, verify the business and
+   add the assistant's number, **055-957-9423** (+972 55-957-9423), under *WhatsApp → API setup → Add phone number*;
+   Meta sends a code to it by SMS or voice call. Don't install WhatsApp on that number (a number on the Cloud API
+   can't be used in the app). Display name: the clinic's name, as Meta approves it.
 2. From *WhatsApp → API setup* copy the **Phone number ID** and create a **permanent access token** (System user in
    Business settings). From *App settings → Basic* copy the **App secret**.
 3. The server must be reachable from the internet over HTTPS. For a demo, run `ngrok http 8000` and use the https

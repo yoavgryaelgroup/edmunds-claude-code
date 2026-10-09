@@ -88,3 +88,5 @@ whatsapp_templates:
 # Staff WhatsApp numbers for handoffs and urgent cases, digits only. This must NOT be the number the assistant
 # sends from (a WhatsApp number can't message itself, and a number on the Cloud API can't also use the WhatsApp app).
 staff_alert_numbers: ["972515646322"]   # the clinic phone, 051-564-6322
+# The assistant's own WhatsApp number (registered on the Cloud API in Meta; patients message it to book).
+assistant_number: "972559579423"        # 055-957-9423

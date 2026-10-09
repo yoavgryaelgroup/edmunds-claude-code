@@ -30,6 +30,9 @@ def load_clinic(path=None):
     for key, t in cfg["appointment_types"].items():
         t["key"] = key
         t["self_book"] = {True: "yes", False: "no"}.get(t.get("self_book"), t.get("self_book", "yes"))
+    if cfg.get("assistant_number") and cfg["assistant_number"] in (cfg.get("staff_alert_numbers") or []):
+        raise ValueError("clinic.yaml: staff_alert_numbers must not include assistant_number "
+                         "(a WhatsApp number can't message itself)")
     return cfg
 
 
