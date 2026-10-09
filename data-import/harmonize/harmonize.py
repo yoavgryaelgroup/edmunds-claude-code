@@ -242,8 +242,8 @@ class Loader:
     def lookup(self, unit_id, table_name, row):
         """First cell of row `row` (0-based, after the header) of another table in the same file."""
         r = self.conn.execute("""SELECT c.cells[1] FROM staging.source_table t JOIN staging.cell_row c USING (table_id)
-                                 WHERE t.unit_id = %s AND t.name = %s
-                                 ORDER BY c.row_index OFFSET %s + coalesce(t.data_start_row, 0) LIMIT 1""",
+                                 WHERE t.unit_id = %s AND t.name = %s AND c.row_index >= coalesce(t.data_start_row, 0)
+                                 ORDER BY c.row_index OFFSET %s LIMIT 1""",
                               (unit_id, table_name, row)).fetchone()
         return r[0].strip() if r and r[0] else None
 
