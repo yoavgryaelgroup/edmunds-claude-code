@@ -8,7 +8,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 
 from .agent import Assistant
@@ -88,7 +88,11 @@ def create_app(services=None):
         s = svc()
         phone = "".join(ch for ch in m.phone if ch.isdigit())
         before = len(s.notifier.sent)
-        answer = s.assistant.reply(phone, m.text, m.name)
+        try:
+            answer = s.assistant.reply(phone, m.text, m.name)
+        except Exception as e:   # show the reason on the demo page (bad API key, no credit, unknown model, ...)
+            log.exception("demo message failed")
+            return JSONResponse({"detail": f"{type(e).__name__}: {e}"}, status_code=500)
         return {"reply": answer, "notifications": s.notifier.sent[before:]}
 
     @app.get("/demo/appointments")

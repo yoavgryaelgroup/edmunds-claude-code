@@ -101,7 +101,9 @@ document.getElementById('f').addEventListener('submit', async (ev) => {
   try {
     const r = await fetch('/demo/message', {method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({phone: document.getElementById('phone').value, text})});
-    const data = await r.json();
+    const raw = await r.text();
+    let data;
+    try { data = JSON.parse(raw); } catch (e) { throw new Error(`${r.status}: ${raw.slice(0, 200)}`); }
     if (!r.ok) throw new Error(data.detail || r.status);
     add(data.reply, 'them');
     for (const n of data.notifications || []) note(`נשלחה הודעת ${n.template} אל ${n.to}: ${n.params.join(' | ')}`);
