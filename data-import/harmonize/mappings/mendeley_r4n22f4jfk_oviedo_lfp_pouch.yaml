@@ -1,0 +1,42 @@
+# Dataset-32: charge/discharge benchmark of one LFP pouch cell (European Batteries), Universidad de Oviedo
+dataset_key: mendeley:r4n22f4jfk
+source_match: r4n22f4jfk
+title: Li-Ion Battery charge/discharge benchmark
+notes: >
+  One cell, four files with the columns I (A, positive while charging), TA (chamber temperature), VB (cell voltage)
+  and TB (cell temperature). There is no time column, and the description does not give the sampling interval,
+  so t_s is empty and the sample order (seq) is the only time axis. c25.csv is the full C/25 charge/discharge
+  (±1.68 A), stored as an OCV test. DS-C1/C2/C3 are charge at 23 A followed by discharge at 42, 21 and 14 A
+  (1C, C/2, C/3), stored as rate tests. The nominal capacity (42 Ah) is inferred from those currents, as the
+  dataset does not state it. The .txt files use a decimal comma. Ambient 23 °C per the description (the chamber
+  reads 24 °C).
+cell_defaults: {manufacturer: European Batteries, chemistry: LFP, form_factor: pouch, nominal_capacity_ah: 42.0}
+
+tables:
+  - label: C/25 full charge/discharge
+    produce: timeseries
+    where: {kind: delimited, path: '(^|/)c25\.csv$'}
+    cell: {const: cell}
+    test:
+      name: {const: C/25 charge/discharge}
+      type: {const: ocv}
+      ambient_temp_c: {const: 23}
+      attributes:
+        c_rate: {const: C/25}
+    columns: &cols
+      current_a: {col: I}
+      voltage_v: {col: VB}
+      temperature_c: {col: TB}
+      chamber_temp_c: {col: TA}
+
+  - label: charge then discharge at 1C, C/2, C/3
+    produce: timeseries
+    where: {kind: delimited, path: '(^|/)DS-C\d\.txt$'}
+    cell: {const: cell}
+    test:
+      name: {path: 'DS-C(\d)\.txt$', map: {'1': 1C, '2': C/2, '3': C/3}, template: 'discharge at {}'}
+      type: {const: rate_capability}
+      ambient_temp_c: {const: 23}
+      attributes:
+        discharge_c_rate: {path: 'DS-C(\d)\.txt$', map: {'1': 1C, '2': C/2, '3': C/3}}
+    columns: *cols

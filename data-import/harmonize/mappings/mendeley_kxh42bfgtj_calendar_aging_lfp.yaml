@@ -1,0 +1,36 @@
+# Dataset-22 (calendar part): calendar aging of LFP/graphite 26650 cells (Sony / Murata, 3 Ah)
+dataset_key: mendeley:kxh42bfgtj
+source_match: kxh42bfgtj
+title: "Data for: Analysis and modeling of calendar aging of a commercial LiFePO4/graphite cell"
+notes: >
+  17 storage test points (temperature and SOC), each with 3 cells according to the dataset description. The
+  files give one value per test point, so each test point is stored as one "cell" (label = test point).
+  Capacity in Ah and the 10 s DC resistance (mOhm in the file, stored in ohms) at each check-up; elapsed_h is
+  the storage time in hours. DifferentialVoltageAnalysis.xlsx and ElectrochemicalImpedanceSpectroscopy.xlsx hold
+  fitted parameters and are not mapped.
+cell_defaults: {manufacturer: Sony / Murata, chemistry: LFP, form_factor: cylindrical 26650, nominal_capacity_ah: 3.0}
+
+tables:
+  - label: discharge capacity per check-up
+    produce: checkup
+    where: {kind: excel, path: 'DischargeCapacity\.xlsx$'}
+    wide_tests: {id_col: 0, id_field: elapsed_h, value_field: capacity_ah, columns: '^TP_'}
+    cell: {header: '^(TP_.*)$'}
+    test:
+      name: {header: '^TP_(.*)$', template: 'calendar aging {}'}
+      type: {const: calendar_aging}
+      ambient_temp_c: {header: 'TP_(-?\d+)°C', number: true}
+      attributes:
+        soc_pct: {header: ',([\d.]+)%SOC', number: true}
+
+  - label: 10 s DC resistance per check-up (mOhm)
+    produce: checkup
+    where: {kind: excel, path: 'ResistanceR_DC10s\.xlsx$'}
+    wide_tests: {id_col: 0, id_field: elapsed_h, value_field: resistance_ohm, value_scale: 0.001, columns: '^TP_'}
+    cell: {header: '^(TP_.*)$'}
+    test:
+      name: {header: '^TP_(.*)$', template: 'calendar aging {}'}
+      type: {const: calendar_aging}
+      ambient_temp_c: {header: 'TP_(-?\d+)°C', number: true}
+      attributes:
+        soc_pct: {header: ',([\d.]+)%SOC', number: true}

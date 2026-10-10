@@ -1,0 +1,30 @@
+# Dataset - 69: LFP, NCA and NMC cells under single and mixed drive cycles at two ageing levels (Chang'an University)
+dataset_key: mendeley:rnvb47fp4t
+source_match: rnvb47fp4t
+title: Battery degradation dataset (ternary and LiFePO4 cells under single and mixed drive cycles)
+notes: >
+  The source's current is positive on discharge (SOC falls while current is positive), so it is flipped to the
+  core convention. Cell types follow the catalog: LFP = A123 26650 2.5 Ah, NCR = Panasonic NCA 18650 3.2 Ah,
+  INR2200 = Samsung NMC 18650 2.2 Ah. Files with a random suffix (e.g. -8boaB8) in "Pre-trained model
+  training" are loaded as separate tests.
+cell_defaults: {}
+cell_overrides:
+  - {match: '^LFP', manufacturer: A123, chemistry: LFP, form_factor: cylindrical 26650, nominal_capacity_ah: 2.5}
+  - {match: '^NCR', manufacturer: Panasonic, chemistry: NCA, form_factor: cylindrical 18650, nominal_capacity_ah: 3.2}
+  - {match: '^INR2200', manufacturer: Samsung, model: INR18650-22, chemistry: NMC, form_factor: cylindrical 18650, nominal_capacity_ah: 2.2}
+
+tables:
+  - label: drive-cycle time series (.mat with t, volt, current, soc)
+    produce: timeseries
+    where: {kind: mat, path: '\.mat$', has_columns: [t, volt, current]}
+    cell: {path: '(LFP-(?:fresh|0\.88capacity)|NCR-(?:fresh|0\.88capacity)|INR2200-\d)'}
+    test:
+      type: {const: drive_cycle}
+      attributes:
+        profile: {path: '(?:^|/)(DST|FUDS|US06|UDDS|BJDST|Mix)-', default: unspecified}
+        ageing: {path: '-(fresh|0\.88capacity)'}
+    columns:
+      t_s: {col: t}
+      voltage_v: {col: volt}
+      current_a: {col: current, sign: -1}
+      soc: {col: soc}

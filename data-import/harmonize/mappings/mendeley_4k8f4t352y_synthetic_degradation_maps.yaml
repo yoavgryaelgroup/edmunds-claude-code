@@ -1,0 +1,8 @@
+# Dataset-59: Synthetic data for Li-ion Batteries Degradation Maps with degradation example
+dataset_key: mendeley:4k8f4t352y
+source_match: 4k8f4t352y
+title: "Synthetic data for Li-ion Batteries Degradation Maps with degradation example"
+not_harmonized: >
+  Synthetic data: simulated charge/discharge voltage curves (Vc, Vd against Qc, Qd) for degradation-mode
+  parameter grids (GIC-LCO maps). Nothing in it is measured on a cell, and the core model is for measurements.
+  The staging tables keep it all.

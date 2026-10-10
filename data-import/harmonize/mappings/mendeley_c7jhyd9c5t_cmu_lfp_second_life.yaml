@@ -1,0 +1,44 @@
+# Dataset - 71: state of health of second-life LiFePO4 cells from a retired hybrid-bus pack (Carnegie Mellon)
+dataset_key: mendeley:c7jhyd9c5t
+source_match: c7jhyd9c5t
+title: StateOfHealthData_LiFePO4
+notes: >
+  All cells are in one workbook, keyed by LocID (module_cell). Voltage, current and capacity are in mV, mA and
+  mAh. Time.H.M.S.ms. and Cap.mAh restart at every step, so they are stored as step_time_s and step capacity;
+  per-cycle capacity is derived from the largest step capacity. The catalog lists 3 Ah, but the measured
+  capacity peaks at 2.29 Ah; check the rating.
+cell_defaults: {manufacturer: A123, model: ANR26650M1, chemistry: LFP, form_factor: cylindrical 26650, nominal_capacity_ah: 3.0}
+
+tables:
+  - label: cell metadata (barcodes, manufacture date, position in the pack)
+    produce: cell_attributes
+    where: {kind: excel, table: '^MetaData$'}
+    cell: {col: LocID}
+
+  - label: capacity test cycling
+    produce: timeseries
+    where: {kind: excel, table: '^Cycling Data$'}
+    cell: {col: LocID}
+    test:
+      name: {const: capacity test}
+      type: {const: characterization}
+    columns:
+      ts: {col: Realtime}
+      step_time_s: {col: Time.H.M.S.ms., parse: hms}
+      cycle_number: {col: Cycle.ID}
+      step_number: {col: Step.ID}
+      voltage_v: {col: Vol.mV, scale: 0.001}
+      current_a: {col: Cur.mA, scale: 0.001}
+      capacity_ah: {col: Cap.mAh, scale: 0.001}
+
+  - label: EIS spectra
+    produce: eis
+    where: {kind: excel, table: '^EIS Data$'}
+    cell: {col: LocID}
+    test:
+      name: {const: EIS}
+      type: {const: eis}
+    columns:
+      frequency_hz: {col: freq/Hz}
+      z_re_ohm: {col: Re(Z)/Ohm}
+      z_im_ohm: {col: -Im(Z)/Ohm, sign: -1}

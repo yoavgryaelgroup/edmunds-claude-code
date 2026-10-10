@@ -1,0 +1,7 @@
+# Dataset-34: EV Lithium Ion Battery Fault Diagnosis Dataset
+dataset_key: mendeley:t42ynjk936
+source_match: t42ynjk936
+title: "EV Lithium Ion Battery Fault Diagnosis Dataset"
+not_harmonized: >
+  Two classification tables (SoC, Temperature, Voltage, fault Label), with no time, cell or test. These are
+  labelled samples for a classifier, not test records, so they don't fit cells / tests / time series.

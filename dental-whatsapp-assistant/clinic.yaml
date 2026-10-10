@@ -1,0 +1,122 @@
+# Clinic settings for the WhatsApp booking assistant. Everything the assistant knows about the clinic is here;
+# edit this file (not the code) to change hours, treatments or wording. Restart the server after a change.
+
+clinic:
+  name_he: "מרפאת השיניים של ד״ר טובה אברך"
+  doctor_he: "ד״ר טובה אברך"
+  address_he: "רחוב רבוצקי 2, רעננה"
+  parking_he: "ניתן להחנות ברחוב, במקומות המסומנים בכחול-לבן או באזורים האפורים."
+  phone: "051-564-6322"                        # clinic phone (+972 51-564-6322), given for urgent cases and when anything fails
+  notes_he: "נא להגיע 10 דקות לפני התור הראשון ולהביא רשימת תרופות קבועות."
+  # English, for patients who write in English
+  name_en: "Dr. Tova Averch Dental Clinic"
+  doctor_en: "Dr. Tova Averch"
+  address_en: "2 Rabutski St., Ra'anana"          # TODO: check the English spelling of the street
+  parking_en: "Street parking is available in the blue-and-white spaces or in the grey areas."
+  notes_en: "Please arrive 10 minutes before your first appointment and bring a list of the medicines you take."
+
+# Languages the assistant speaks. It answers in the patient's language and remembers it for reminders.
+languages: [he, en]
+default_language: he
+
+timezone: Asia/Jerusalem
+
+# Opening hours per day (24 h clock). A day that is missing or empty is closed.
+hours:
+  sun: ["14:00-18:00"]
+  mon: ["14:00-18:00"]
+  tue: []
+  wed: ["09:00-13:00"]
+  thu: ["09:00-13:00"]
+  fri: ["08:00-12:00"]
+  sat: []
+
+scheduling:
+  chairs: 1                    # one patient at a time
+  buffer_minutes: 10           # cleaning and sterilisation after every appointment
+  slot_step_minutes: 15        # start times offered on a 15-minute grid
+  min_notice_minutes: 120      # no booking less than 2 hours ahead
+  max_days_ahead: 60
+  offer_per_day: 2             # spread the offered times over several days
+  # One urgent slot held in each session; released for ordinary booking this many minutes before it starts
+  # (more than min_notice_minutes, so a released slot can still be booked).
+  urgent_hold:
+    release_minutes_before: 180
+    windows:
+      sun: ["16:00-16:30"]
+      mon: ["16:00-16:30"]
+      wed: ["11:00-11:30"]
+      thu: ["11:00-11:30"]
+      fri: ["10:00-10:30"]
+  # Israeli holidays come from Google's public Jewish-holidays calendar. A holiday whose name contains one of the
+  # keywords closes the clinic for the day; its eve ("Erev ...") closes the clinic from eve_closes_at.
+  holidays:
+    calendar_id: "en.jewish#holiday@group.v.calendar.google.com"
+    closed_keywords: ["Rosh Hashana", "Yom Kippur", "Sukkot I", "Shmini Atzeret", "Simchat Torah", "Pesach I",
+                      "Pesach VII", "Shavuot", "Yom HaAtzma'ut", "Tish'a B'Av"]
+    eve_closes_at: "12:00"
+  closed_dates: []             # extra closures, e.g. ["2026-12-24"]
+  # New patients' bookings stay tentative until they tap "confirm" in the reminder; an unconfirmed booking is
+  # released this many hours before it starts.
+  confirm_deadline_hours: 12
+  reminder_hours_before: 24
+
+# Appointment types. self_book: yes = the assistant books it; plan = only for a patient whose treatment plan
+# includes it (the assistant hands off to staff otherwise); no = staff only.
+# new_patients: true = a new patient may book it. only_between: keep long treatments at the start of a session.
+# min_notice_minutes overrides the general notice for one type (urgent cases can come in sooner).
+appointment_types:
+  checkup:        {name_he: "בדיקה תקופתית", name_en: "Check-up",
+                   line: hygiene, minutes: 30, self_book: yes}
+  cleaning:       {name_he: "ניקוי אבנית (שיננית)", name_en: "Hygiene cleaning",
+                   line: hygiene, minutes: 45, self_book: yes}
+  checkup_clean:  {name_he: "בדיקה + ניקוי אבנית", name_en: "Check-up + cleaning",
+                   line: hygiene, minutes: 60, self_book: yes}
+  filling:        {name_he: "סתימה", name_en: "Filling",
+                   line: conservative, minutes: 45, self_book: plan}
+  root_canal:     {name_he: "טיפול שורש", name_en: "Root canal treatment",
+                   line: conservative, minutes: 90, self_book: plan,
+                   only_between: ["09:00-10:00", "14:00-15:00", "08:00-09:00"]}
+  restorative_consult: {name_he: "ייעוץ כתר / גשר / שתל", name_en: "Crown / bridge / implant consultation",
+                   line: restorative, minutes: 30, self_book: yes}
+  restorative_treatment: {name_he: "טיפול שיקומי (כתר / גשר / שתל)", name_en: "Restorative treatment (crown / bridge / implant)",
+                   line: restorative, minutes: 60, self_book: no}
+  aesthetic_consult: {name_he: "ייעוץ הלבנה / אסתטיקה", name_en: "Whitening / cosmetic consultation",
+                   line: aesthetics, minutes: 30, self_book: yes}
+  whitening:      {name_he: "הלבנת שיניים", name_en: "Teeth whitening",
+                   line: aesthetics, minutes: 90, self_book: plan,
+                   only_between: ["09:00-10:00", "14:00-15:00", "08:00-09:00"]}
+  first_visit:    {name_he: "ביקור ראשון (בדיקה וייעוץ)", name_en: "First visit (exam and consultation)",
+                   line: new_patient, minutes: 45, self_book: yes, new_patients: true}
+  urgent:         {name_he: "תור דחוף (כאב / חירום)", name_en: "Urgent appointment (pain / emergency)",
+                   line: urgent, minutes: 30, self_book: yes, new_patients: true, urgent: true,
+                   min_notice_minutes: 30}
+
+lines_he:
+  hygiene: "בדיקות וטיפולי היגיינה"
+  conservative: "טיפולים משמרים (סתימות, טיפולי שורש)"
+  restorative: "שיקום הפה (כתרים, גשרים, שתלים)"
+  aesthetics: "אסתטיקה (הלבנה, עיצוב חיוך)"
+  new_patient: "מטופל/ת חדש/ה"
+  urgent: "כאב או מקרה דחוף"
+
+lines_en:
+  hygiene: "Check-ups and hygiene"
+  conservative: "Conservative treatment (fillings, root canals)"
+  restorative: "Restorative dentistry (crowns, bridges, implants)"
+  aesthetics: "Aesthetics (whitening, smile design)"
+  new_patient: "New patient"
+  urgent: "Pain or urgent problem"
+
+# WhatsApp message templates for messages the clinic starts (approved by Meta). Each template has a Hebrew and
+# an English version under the same name; the patient gets the one in their language.
+whatsapp_templates:
+  languages: {he: he, en: en}         # our language -> Meta's language code for the template
+  reminder: appointment_reminder      # {{1}} name, {{2}} treatment, {{3}} day and time; 3 quick-reply buttons
+  waitlist_offer: waitlist_offer      # {{1}} treatment, {{2}} day and time
+  staff_alert: staff_alert            # {{1}} patient phone, {{2}} reason (Hebrew only: it goes to the clinic)
+# Staff WhatsApp numbers for handoffs and urgent cases, digits only. This must NOT be the number the assistant
+# sends from (a WhatsApp number can't message itself, and a number on the Cloud API can't also use the WhatsApp app).
+staff_alert_numbers: ["972515646322"]   # the clinic phone, 051-564-6322
+# The assistant's own WhatsApp number (registered on the Cloud API in Meta; patients message it to book).
+assistant_number: "972559579423"        # 055-957-9423

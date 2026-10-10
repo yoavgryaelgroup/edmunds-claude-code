@@ -1,0 +1,8 @@
+# Dataset-37: Battery Test Data (LiFePO4 18650 1100 mAh, Panasonic NCR18650B 3400 mAh, Murata VTC6 18650 3000 mAh)
+dataset_key: mendeley:29kw38kzwj
+source_match: 29kw38kzwj
+title: "Battery Test Data (LiFePO4 18650 1100 mAh, Panasonic NCR18650B 3400 mAh, Murata VTC6 18650 3000 mAh)"
+not_harmonized: >
+  The files are RAR archives. Staging can unpack them with tar.exe on Windows, but they could not be opened
+  when this mapping was written, so the column layout is unknown. Run parse.py on this dataset, then a mapping
+  can be written from staging.v_tables.

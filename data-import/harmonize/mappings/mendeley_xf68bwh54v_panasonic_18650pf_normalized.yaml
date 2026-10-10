@@ -1,0 +1,8 @@
+# Dataset-61: Panasonic 18650PF Li-ion Battery Data and Example FNN and LSTM Neural Network SOC Estimator Training Script
+dataset_key: mendeley:xf68bwh54v
+source_match: xf68bwh54v
+title: "Panasonic 18650PF Li-ion Battery Data and Example FNN and LSTM Neural Network SOC Estimator Training Script"
+not_harmonized: >
+  Normalized (min-max scaled) training matrices X / Y and X_Test derived from Dataset-14 (Panasonic 18650PF,
+  mapping mendeley_wykht8y7tg). The measurements themselves are already harmonized from Dataset-14; this copy
+  is scaled to 0-1 and would duplicate them.

@@ -1,0 +1,6 @@
+# Dataset-8: Graphite//LFP synthetic training prognosis dataset
+dataset_key: mendeley:6s6ph9n8zg
+source_match: 6s6ph9n8zg
+title: "Graphite//LFP synthetic training prognosis dataset"
+not_harmonized: >
+  Synthetic training data (simulated degradation trajectories for prognosis), not measurements.

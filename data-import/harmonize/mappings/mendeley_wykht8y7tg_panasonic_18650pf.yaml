@@ -1,0 +1,37 @@
+# Dataset - 14: Panasonic 18650PF Li-ion battery data (University of Wisconsin-Madison, Kollmeyer)
+# One new 2.9 Ah cell tested at -20, -10, 0, 10 and 25 °C: drive cycles, HPPC pulses, charges, OCV tests.
+dataset_key: mendeley:wykht8y7tg
+source_match: wykht8y7tg
+title: Panasonic 18650PF Li-ion Battery Data
+notes: >
+  Single cell (readme: "a brand new 2.9Ah Panasonic 18650PF cell"). Current is negative on discharge in the
+  source, which matches the core convention. The EIS .csv files are not loaded yet: their Zreal1 / Zimg1
+  columns (about 27 at 6 kHz) have no unit in the file and look like milliohms; confirm before mapping.
+cell_defaults: {manufacturer: Panasonic, model: NCR18650PF, chemistry: NCA, form_factor: cylindrical 18650, nominal_capacity_ah: 2.9}
+
+tables:
+  - label: drive cycles, pulse tests, charges and OCV tests (.mat, struct "meas")
+    produce: timeseries
+    where: {kind: mat, path: '\.mat$', has_columns: [Time, Voltage, Current]}
+    cell: {const: NCR18650PF}
+    test:
+      type:
+        path_map:
+          - ['Drive [Cc]ycles|Trise', drive_cycle]
+          - ['C20 OCV', ocv]
+          - ['1C discharge', rate_capability]
+        default: characterization
+      ambient_temp_c: {path: '/(-?\d+)degC', number: true}
+      attributes:
+        folder: {path: 'Data/([^/]+/[^/]+)/'}
+        profile: {path: '_(HWFET|UDDS|LA92|US06|NN|Cycle_\d|Cycle_1to4|HPPC|5[Pp]ulse|trise_[A-Z0-9_]+?)_Pan'}
+    columns:
+      t_s: {col: Time}
+      ts: {col: TimeStamp}
+      voltage_v: {col: Voltage}
+      current_a: {col: Current}
+      capacity_ah: {col: Ah}
+      energy_wh: {col: Wh}
+      power_w: {col: Power}
+      temperature_c: {col: Battery_Temp_degC}
+      chamber_temp_c: {col: Chamber_Temp_degC}

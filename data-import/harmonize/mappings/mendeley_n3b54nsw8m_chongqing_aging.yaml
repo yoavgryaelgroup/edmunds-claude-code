@@ -1,0 +1,45 @@
+# Dataset-60: aging of NCA pouch, LFP prismatic and NMC cells under various profiles (Chongqing University / Aalborg)
+dataset_key: mendeley:n3b54nsw8m
+source_match: n3b54nsw8m
+title: "Battery aging datasets for 'Increasing generalization capability of battery health estimation using continual learning approach'"
+notes: >
+  Four .mat files. Each holds one capacity-per-cycle series per cell (DatasetN.Capacity[i]) and, for datasets 1-4,
+  the cell names (DatasetN.cell) and working profiles (DatasetN.Workingprofile) in the same order; the mapping
+  pairs them by position. Only the discharge capacity per cycle is loaded (as reported cycles, numbered from 1).
+  Dataset1_Dataset2 (NCA pouch, 8 Ah nominal per the catalog; measured capacity starts near 9.4 Ah) lists 30
+  series: C1-C15 and "C1 SL"-"C15 SL", kept as separate cells as labelled. Dataset3 is LFP prismatic 100 Ah, and
+  its profile names the charge/discharge rate and temperature (e.g. 1c_1cC_25℃). Dataset4 (6 cells, about
+  100 Ah) is not described in the catalog, so its chemistry is left empty. Dataset5 is the 150 mAh NMC cells,
+  in mAh in the file (stored in Ah); it has no cell names, so cells are labelled by position. The Partial_Q and
+  Partial_dQ arrays (partial charging curves, 100-120 points per cycle) are features, not loaded.
+cell_defaults: {}
+cell_overrides:
+  - {match: '^Dataset1_Dataset2:', chemistry: NCA, form_factor: pouch, nominal_capacity_ah: 8.0}
+  - {match: '^Dataset3:', chemistry: LFP, form_factor: prismatic, nominal_capacity_ah: 100.0}
+  - {match: '^Dataset4:', form_factor: prismatic}
+  - {match: '^Dataset5:', chemistry: NMC, form_factor: prismatic, nominal_capacity_ah: 0.15}
+
+tables:
+  - label: capacity per cycle, datasets 1-4 (Ah; cell name and profile from the sibling tables)
+    produce: cycle
+    where: {kind: mat, table: '^Dataset[1-4](_Dataset2)?\.Capacity\[\d+\]$'}
+    cell: {name: '^(Dataset[1-4](?:_Dataset2)?)\.Capacity\[(\d+)\]$', sibling: '{0}.cell', template: '{0}:{2}'}
+    test:
+      name: {name: '^(Dataset[1-4](?:_Dataset2)?)\.Capacity\[(\d+)\]$', sibling: '{0}.Workingprofile', strip: ':', template: 'aging {2}'}
+      type: {const: cycle_aging}
+      attributes:
+        profile: {name: '^(Dataset[1-4](?:_Dataset2)?)\.Capacity\[(\d+)\]$', sibling: '{0}.Workingprofile', strip: ':'}
+    columns:
+      cycle_number: {row_number: true, start: 1}
+      discharge_ah: {col: value}
+
+  - label: capacity per cycle, dataset 5 (mAh)
+    produce: cycle
+    where: {kind: mat, table: '^Dataset5\.Capacity\[\d+\]$'}
+    cell: {name: '^(Dataset5)\.Capacity\[(\d+)\]$', template: '{0}:{1}'}
+    test:
+      name: {const: aging}
+      type: {const: cycle_aging}
+    columns:
+      cycle_number: {row_number: true, start: 1}
+      discharge_ah: {col: value, scale: 0.001}

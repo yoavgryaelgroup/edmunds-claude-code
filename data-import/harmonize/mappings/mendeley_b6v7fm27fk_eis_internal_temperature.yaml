@@ -1,0 +1,23 @@
+# Dataset - 79: EIS during charging at different SOCs and temperatures, for internal-temperature estimation
+dataset_key: mendeley:b6v7fm27fk
+source_match: b6v7fm27fk
+title: Accurately estimating internal temperature of lithium-ion batteries (EIS dataset)
+notes: >
+  One spectrum per cell, temperature and SOC. Zim(Ω) is Im(Z) as measured (positive at 100 kHz). One sheet
+  (25degC/cell17/40%SOC) has no column header and is left out by this mapping.
+cell_defaults: {nominal_capacity_ah: 0.03}
+
+tables:
+  - label: EIS spectra
+    produce: eis
+    where: {kind: excel, path: '/cell\d+/EIS/\d+%SOC\.xlsx$', has_columns: ['Freq(Hz)', 'Zre(Ω)', 'Zim(Ω)']}
+    cell: {path: '/(cell\d+)/'}
+    test:
+      type: {const: eis}
+      ambient_temp_c: {path: '/(\d+)degC/', number: true}
+      attributes:
+        soc_pct: {path: '/(\d+)%SOC', number: true}
+    columns:
+      frequency_hz: {col: 'Freq(Hz)'}
+      z_re_ohm: {col: 'Zre(Ω)'}
+      z_im_ohm: {col: 'Zim(Ω)'}
