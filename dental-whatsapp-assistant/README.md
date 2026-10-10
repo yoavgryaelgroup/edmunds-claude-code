@@ -1,6 +1,6 @@
 # WhatsApp booking assistant – Dr. Tova Averch dental clinic (prototype)
 
-Patients chat with the clinic on WhatsApp in Hebrew; an AI assistant (Claude) books, moves and cancels appointments
+Patients chat with the clinic on WhatsApp in Hebrew or English; an AI assistant (Claude) books, moves and cancels appointments
 in the clinic's Google Calendar, sends reminders, keeps a waitlist, and hands medical or urgent matters to the staff.
 
 Design: see the shared page "WhatsApp Booking Assistant — Dr. Tova Averch Dental Clinic".
@@ -36,6 +36,8 @@ Clinic rules built in (change them in `clinic.yaml`):
 - Root canals and whitening start in the first hour of a session.
 - New patients book a first visit (45 min) or an urgent slot; it stays "pending" until they confirm in the reminder.
 - The assistant never diagnoses or gives medical advice; severe symptoms go to staff at once with the clinic phone.
+- Hebrew and English: it answers in the patient's language (Hebrew by default), switches when they do, and sends
+  reminders and waitlist offers in that language. English names and clinic details are in `clinic.yaml` (`*_en`).
 
 ## 1. Try the demo on your PC (10 minutes, no WhatsApp or Google needed)
 
@@ -109,9 +111,14 @@ templates (category *Utility*). Names must match `clinic.yaml`:
 
 | Name | Body | Buttons (quick reply) |
 | --- | --- | --- |
-| `appointment_reminder` | שלום {{1}}, תזכורת לתור שלך ל{{2}} במרפאת השיניים, {{3}}. נשמח לאישור הגעה. | מאשר/ת · לשנות מועד · לבטל |
-| `waitlist_offer` | התפנה תור ל{{1}}, {{2}}. רוצה אותו? אפשר להשיב להודעה זו ונקבע. | רוצה · לא תודה |
-| `staff_alert` | פנייה מהעוזר הדיגיטלי: מטופל {{1}} – {{2}} | – |
+| `appointment_reminder` (Hebrew) | שלום {{1}}, תזכורת לתור שלך ל{{2}} במרפאת השיניים, {{3}}. נשמח לאישור הגעה. | מאשר/ת · לשנות מועד · לבטל |
+| `appointment_reminder` (English) | Hi {{1}}, a reminder of your {{2}} appointment at the dental clinic, {{3}}. Please confirm you're coming. | Confirm · Reschedule · Cancel |
+| `waitlist_offer` (Hebrew) | התפנה תור ל{{1}}, {{2}}. רוצה אותו? אפשר להשיב להודעה זו ונקבע. | רוצה · לא תודה |
+| `waitlist_offer` (English) | A {{1}} appointment just opened up: {{2}}. Would you like it? Reply to this message and we'll book it. | Yes please · No thanks |
+| `staff_alert` (Hebrew only) | פנייה מהעוזר הדיגיטלי: מטופל {{1}} – {{2}} | – |
+
+Create each template once and add both languages to it (Hebrew and English); the assistant sends each patient the
+version in their language.
 
 Staff alerts go to the numbers in `staff_alert_numbers` in `clinic.yaml`: the clinic phone, 051-564-6322. That
 number keeps using the WhatsApp (Business) app as today, so the assistant needs its **own** number on the Cloud API:

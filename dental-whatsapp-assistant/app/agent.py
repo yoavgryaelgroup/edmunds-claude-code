@@ -5,10 +5,11 @@ can't see or change anyone else's appointments.
 """
 import json
 import logging
+import re
 from datetime import date, datetime, timedelta, timezone
 
 from .config import env
-from .scheduling import BookingError, hebrew_label
+from .scheduling import BookingError, english_label, hebrew_label, type_name
 
 log = logging.getLogger(__name__)
 
@@ -70,57 +71,82 @@ TOOLS = [
 ]
 
 
-def system_prompt(cfg, now):
+HEBREW = re.compile(r"[\u0590-\u05FF]")
+LATIN = re.compile(r"[A-Za-z]")
+
+
+def detect_language(text, current=None):
+    """he if the message has Hebrew letters; en if it is written in Latin letters; else unchanged (emoji, times).
+    A Hebrew speaker's short "ok" or "10:30 am" doesn't switch them to English: that needs 4 or more Latin letters."""
+    text = text or ""
+    if HEBREW.search(text):
+        return "he"
+    latin = len(LATIN.findall(text))
+    if latin >= 4 or (latin and current is None):
+        return "en"
+    return current
+
+
+def system_prompt(cfg, now, lang="he"):
     c = cfg["clinic"]
+    lines_en = cfg.get("lines_en") or {}
     types = "\n".join(
-        f"- {k}: {t['name_he']} ({t['minutes']} דק׳; קבוצה: {cfg['lines_he'][t['line']]}; "
-        f"self_book={t['self_book']}{'; new patients may book' if t.get('new_patients') else ''}"
-        f"{'; URGENT' if t.get('urgent') else ''})"
+        f"- {k}: {t['name_he']} / {type_name(t, 'en')} ({t['minutes']} min; group: {cfg['lines_he'][t['line']]} / "
+        f"{lines_en.get(t['line'], t['line'])}; self_book={t['self_book']}"
+        f"{'; new patients may book' if t.get('new_patients') else ''}{'; URGENT' if t.get('urgent') else ''})"
         for k, t in cfg["appointment_types"].items())
-    hours = []
-    names = {"sun": "ראשון", "mon": "שני", "tue": "שלישי", "wed": "רביעי", "thu": "חמישי", "fri": "שישי", "sat": "שבת"}
-    for k, label in names.items():
-        r = cfg["hours"].get(k) or []
-        hours.append(f"יום {label}: {', '.join(r) if r else 'סגור'}")
-    return f"""You are the WhatsApp booking assistant of {c['name_he']}. You help patients book, move and cancel
-appointments and answer practical questions about the clinic.
+    he_days = {"sun": "ראשון", "mon": "שני", "tue": "שלישי", "wed": "רביעי", "thu": "חמישי", "fri": "שישי", "sat": "שבת"}
+    en_days = {"sun": "Sun", "mon": "Mon", "tue": "Tue", "wed": "Wed", "thu": "Thu", "fri": "Fri", "sat": "Sat"}
+    hours_he = "; ".join(f"יום {n}: {', '.join(cfg['hours'].get(k) or []) or 'סגור'}" for k, n in he_days.items())
+    hours_en = "; ".join(f"{n}: {', '.join(cfg['hours'].get(k) or []) or 'closed'}" for k, n in en_days.items())
+    groups_he = " / ".join(cfg["lines_he"][g] for g in ("hygiene", "conservative", "restorative", "aesthetics", "urgent"))
+    groups_en = " / ".join(lines_en.get(g, g) for g in ("hygiene", "conservative", "restorative", "aesthetics", "urgent"))
+    language = "English" if lang == "en" else "Hebrew"
+    return f"""You are the WhatsApp booking assistant of {c['name_he']} ({c.get('name_en', '')}). You help patients
+book, move and cancel appointments and answer practical questions about the clinic.
 
-Always write in Hebrew (unless the patient writes in another language), warmly and briefly, like a friendly
-receptionist: short WhatsApp messages, no markdown headings or tables. Use the patient's first name once you know it.
-Dates in Israeli style, e.g. {hebrew_label(now)}.
+Language: you speak Hebrew and English. Answer in the language of the patient's latest message; right now that is
+{language}. If they switch language, switch with them. Hebrew is the default. Use the Hebrew or English names below
+to match, and dates as the tools give them: "label" in Hebrew, "label_en" in English (e.g. {hebrew_label(now)} /
+{english_label(now)}).
 
-Now: {hebrew_label(now)} ({now.isoformat(timespec='minutes')}, Asia/Jerusalem).
+Style: warm and brief, like a friendly receptionist: short WhatsApp messages, no markdown headings or tables. Use the
+patient's first name once you know it.
 
-The clinic
-- Doctor: {c['doctor_he']}. Clinic phone: {c.get('phone') or '(not set)'}.
-- Address: {c.get('address_he') or '(not set – say staff will send it)'}. Parking: {c.get('parking_he') or '(not set)'}.
-- Opening hours: {'; '.join(hours)}. Closed on Jewish holidays.
-- {c.get('notes_he') or ''}
+Now: {english_label(now)} ({now.isoformat(timespec='minutes')}, Asia/Jerusalem).
+
+The clinic (Hebrew / English)
+- Doctor: {c['doctor_he']} / {c.get('doctor_en', '')}. Clinic phone: {c.get('phone') or '(not set)'}.
+- Address: {c.get('address_he') or '(not set - say staff will send it)'} / {c.get('address_en', '')}.
+- Parking: {c.get('parking_he') or '(not set)'} / {c.get('parking_en', '')}
+- Opening hours: {hours_he} / {hours_en}. Closed on Jewish holidays.
+- {c.get('notes_he') or ''} / {c.get('notes_en', '')}
 - The clinic has one treatment chair: one patient at a time.
 
-Appointment types (key: name, length):
+Appointment types (key: Hebrew name / English name, length):
 {types}
 
 How to work
 1. Start every conversation with find_patient.
-2. Ask what the visit is for if it isn't clear. Offer the service groups (בדיקות וטיפולי היגיינה / טיפולים משמרים /
-   שיקום הפה / אסתטיקה / כאב או מקרה דחוף), then the type.
+2. Ask what the visit is for if it isn't clear. Offer the service groups ({groups_he} | {groups_en}), then the type.
 3. New patients (not registered, or existing_patient=false) may only book types marked "new patients may book":
    their first visit is always first_visit (an exam that also serves as a consultation), or urgent. Before booking,
-   register them: ask for full name and date of birth, then ask explicitly: "האם את/ה מסכים/ה לקבל מאיתנו הודעות
-   WhatsApp ולמדיניות הפרטיות של המרפאה?" Register only with a clear yes. Tell new patients the booking is
-   pending until they confirm in the reminder message the day before.
+   register them: ask for full name and date of birth, then ask explicitly whether they agree to receive WhatsApp
+   messages from the clinic and to the clinic's privacy policy ("האם את/ה מסכים/ה לקבל מאיתנו הודעות WhatsApp
+   ולמדיניות הפרטיות של המרפאה?" / "Do you agree to receive WhatsApp messages from us and to the clinic's privacy
+   policy?"). Register only with a clear yes. Tell new patients the booking is pending until they confirm in the
+   reminder message the day before.
 4. self_book=yes: offer 2-3 times from find_free_slots and book the one the patient picks. Never invent times.
    self_book=plan (filling, root canal, whitening session): book only if the patient says it is part of a treatment
-   plan Dr. already set; if unsure, hand off. self_book=no: hand off to staff.
+   plan the doctor already set; if unsure, hand off. self_book=no: hand off to staff.
 5. Before cancelling or moving, say which appointment (type, day, time) and get a yes.
 6. If nothing suitable is free, offer the waitlist.
 7. Urgent symptoms (severe pain, swelling, bleeding, injury, fever): offer the earliest urgent slot, call
    handoff_to_staff with urgent=true, and give the clinic phone. If it sounds like an emergency (swelling of the face
-   or throat, trouble breathing or swallowing, heavy bleeding, an accident), tell them to call 101 (מד״א) or go to
-   the emergency room now.
+   or throat, trouble breathing or swallowing, heavy bleeding, an accident), tell them to call 101 (Magen David
+   Adom, מד״א) or go to the emergency room now.
 8. Never diagnose, never give medical advice or medication advice, never quote a price for a specific case.
-   Medical questions -> handoff_to_staff.
+   Medical questions -> handoff_to_staff. Write handoff reasons in Hebrew (the staff read them).
 9. If a tool fails, apologise briefly and give the clinic phone.
 """
 
@@ -155,7 +181,8 @@ class Tools:
     def _appt(self, a):
         t = self.sch.cfg["appointment_types"].get(a.type_key, {})
         return {"appointment_id": a.id, "type_key": a.type_key, "type": t.get("name_he", a.type_key),
-                "start": a.start.isoformat(), "label": hebrew_label(a.start), "status": a.status}
+                "type_en": t.get("name_en", a.type_key), "start": a.start.isoformat(),
+                "label": hebrew_label(a.start), "label_en": english_label(a.start), "status": a.status}
 
     def find_patient(self):
         p = self.store.patient(self.phone)
@@ -181,7 +208,7 @@ class Tools:
             return {"error": "staff schedule this type; use handoff_to_staff"}
         fd = date.fromisoformat(from_date) if from_date else None
         slots = self.sch.find_slots(type_key, fd, part_of_day or "any")
-        return {"type": t["name_he"], "minutes": t["minutes"], "slots": slots}
+        return {"type": t["name_he"], "type_en": type_name(t, "en"), "minutes": t["minutes"], "slots": slots}
 
     def book_appointment(self, type_key, start):
         p = self.store.patient(self.phone)
@@ -256,8 +283,13 @@ class Assistant:
             messages = []
         note = f"[WhatsApp profile name: {profile_name}]\n" if profile_name and not messages else ""
         messages.append({"role": "user", "content": note + text})
+        default = self.cfg.get("default_language", "he")
+        lang = detect_language(text, self.store.language(phone, None))
+        if lang not in (self.cfg.get("languages") or ["he"]):
+            lang = default
+        self.store.set_language(phone, lang)      # reminders and offers go out in this language
         tools = Tools(phone, self.sch, self.store, self.notify)
-        system = system_prompt(self.cfg, self.sch.now())
+        system = system_prompt(self.cfg, self.sch.now(), lang)
         answer = ""
         for _ in range(MAX_TOOL_ROUNDS):
             resp = self.client.messages.create(model=self.model, max_tokens=1024, system=system,

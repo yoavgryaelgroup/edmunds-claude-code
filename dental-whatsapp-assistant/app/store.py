@@ -16,6 +16,11 @@ CREATE TABLE IF NOT EXISTS patient (
     consent_at       TEXT,                    -- when the patient agreed to WhatsApp messages and the privacy notice
     created_at       TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS contact (
+    phone       TEXT PRIMARY KEY,
+    language    TEXT NOT NULL,                -- he / en: the language of the patient's latest message
+    updated_at  TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS conversation (
     phone       TEXT PRIMARY KEY,
     messages    TEXT NOT NULL,                -- the recent chat with the AI, as sent to the model
@@ -83,6 +88,16 @@ class Store:
 
     def set_existing(self, phone, existing=True):
         self._x("UPDATE patient SET existing_patient = ? WHERE phone = ?", (int(existing), phone))
+
+    # language
+    def language(self, phone, default="he"):
+        r = self._x("SELECT language FROM contact WHERE phone = ?", (phone,)).fetchone()
+        return r["language"] if r else default
+
+    def set_language(self, phone, language):
+        self._x("""INSERT INTO contact (phone, language, updated_at) VALUES (?, ?, ?)
+                   ON CONFLICT (phone) DO UPDATE SET language = excluded.language, updated_at = excluded.updated_at""",
+                (phone, language, utcnow()))
 
     # conversations
     def history(self, phone):

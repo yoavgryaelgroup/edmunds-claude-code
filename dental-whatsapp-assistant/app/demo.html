@@ -50,9 +50,9 @@
       <b>מרפאת השיניים – עוזר WhatsApp (הדגמה)</b>
       <label>מספר מטופל: <input id="phone" value="972500000001"></label>
     </header>
-    <div id="log"><div class="note">כתבו הודעה כמו שמטופל/ת היה כותב/ת ב-WhatsApp, למשל: "שלום, אפשר לקבוע תור לניקוי שיניים?"</div></div>
+    <div id="log"><div class="note">כתבו הודעה כמו שמטופל/ת היה כותב/ת ב-WhatsApp, למשל: "שלום, אפשר לקבוע תור לניקוי שיניים?" או באנגלית: "Hi, can I book a cleaning?"</div></div>
     <form id="f">
-      <input id="text" autocomplete="off" placeholder="הקלידו הודעה">
+      <input id="text" dir="auto" autocomplete="off" placeholder="הקלידו הודעה / Type a message">
       <button id="send">שליחה</button>
     </form>
   </section>
@@ -68,7 +68,7 @@
 const log = document.getElementById('log');
 function add(text, cls) {
   const d = document.createElement('div');
-  d.className = 'msg ' + cls; d.textContent = text; log.appendChild(d); log.scrollTop = log.scrollHeight;
+  d.className = 'msg ' + cls; d.dir = 'auto'; d.textContent = text; log.appendChild(d); log.scrollTop = log.scrollHeight;
 }
 function note(text) {
   const d = document.createElement('div'); d.className = 'note'; d.textContent = text; log.appendChild(d);

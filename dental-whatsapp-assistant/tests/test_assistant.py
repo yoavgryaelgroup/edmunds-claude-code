@@ -213,3 +213,29 @@ def test_unreadable_holiday_calendar_does_not_stop_bookings(svc):
         raise RuntimeError("403 from Google")
     svc.calendar.holidays = broken
     assert svc.scheduler.find_slots("checkup", limit=1)
+
+
+# ---------------------------------------------------------------- English
+
+def test_language_detection():
+    from app.agent import detect_language
+    assert detect_language("Hi, can I book a cleaning?") == "en"
+    assert detect_language("שלום") == "he"
+    assert detect_language("ok", current="he") == "he"          # a Hebrew speaker's short "ok" stays Hebrew
+    assert detect_language("Hi") == "en"                         # first message in English
+    assert detect_language("10:30", current="en") == "en"
+
+
+def test_english_patient_gets_english_prompt_slots_and_reminder(svc, clock):
+    fake = FakeClient()
+    a = Assistant(svc.cfg, svc.scheduler, svc.store, svc.notifier, client=fake, model="test")
+    a.reply("972500000003", "Hi, I'd like to book a cleaning")
+    assert "that is\nEnglish." in fake.calls[0]["system"]
+    assert svc.store.language("972500000003") == "en"
+    slots = tools(svc, "972500000003").run("find_free_slots", {"type_key": "cleaning"})
+    assert slots["type_en"] == "Hygiene cleaning" and slots["slots"][0]["label_en"] == "Sun 11.10 at 14:00"
+    svc.scheduler.book("972500000003", "John Smith", "cleaning", at(12, 14))
+    clock["now"] = at(11, 14, 30)
+    reminders.run(svc)
+    sent = [n for n in svc.notifier.sent if n["template"] == "reminder"][-1]
+    assert sent["language"] == "en" and sent["params"] == ["John", "Hygiene cleaning", "Mon 12.10 at 14:00"]

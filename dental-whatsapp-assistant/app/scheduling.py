@@ -16,9 +16,25 @@ log = logging.getLogger(__name__)
 HEB_DAYS = ["ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "שבת", "א׳"]  # by weekday(): Monday = ב׳ ... Sunday = א׳
 
 
+EN_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
 def hebrew_label(dt):
     day = "שבת" if dt.weekday() == 5 else f"יום {HEB_DAYS[dt.weekday()]}"
     return f"{day} {dt.day}.{dt.month} בשעה {dt:%H:%M}"
+
+
+def english_label(dt):
+    return f"{EN_DAYS[dt.weekday()]} {dt.day}.{dt.month} at {dt:%H:%M}"
+
+
+def label(dt, lang="he"):
+    """A date and time the way a patient reads it, in their language."""
+    return english_label(dt) if lang == "en" else hebrew_label(dt)
+
+
+def type_name(t, lang="he"):
+    return t.get(f"name_{lang}") or t["name_he"]
 
 
 @dataclass
@@ -171,7 +187,7 @@ class Scheduler:
                             continue
                         c += step
                 d += timedelta(days=1)
-        return [{"start": s.isoformat(), "label": hebrew_label(s)} for s in found]
+        return [{"start": s.isoformat(), "label": hebrew_label(s), "label_en": english_label(s)} for s in found]
 
     def is_free(self, type_key, start, ignore_id=None):
         t = self.type(type_key)

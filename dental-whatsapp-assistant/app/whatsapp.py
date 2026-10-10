@@ -6,7 +6,7 @@ import logging
 import httpx
 
 from .config import env
-from .scheduling import hebrew_label
+from .scheduling import label, type_name
 
 log = logging.getLogger(__name__)
 GRAPH = "https://graph.facebook.com/v21.0"
@@ -81,14 +81,15 @@ class Notifier:
         self.tpl = cfg.get("whatsapp_templates") or {}
         self.sent = []   # what was sent, for the demo page and the tests
 
-    def _template(self, to, key, params):
-        self.sent.append({"to": to, "template": key, "params": params})
+    def template(self, to, key, params, lang="he"):
+        self.sent.append({"to": to, "template": key, "params": params, "language": lang})
         if self.tpl.get(key):
-            self.wa.send_template(to, self.tpl[key], self.tpl.get("language", "he"), params)
+            codes = self.tpl.get("languages") or {}
+            self.wa.send_template(to, self.tpl[key], codes.get(lang, self.tpl.get("language", lang)), params)
 
     def staff(self, patient_phone, reason):
         for number in self.cfg.get("staff_alert_numbers") or []:
-            self._template(number, "staff_alert", [f"+{patient_phone}", reason])
+            self.template(number, "staff_alert", [f"+{patient_phone}", reason])
         if not self.cfg.get("staff_alert_numbers"):
             self.sent.append({"to": "staff", "template": "staff_alert", "params": [f"+{patient_phone}", reason]})
         log.warning("STAFF ALERT from +%s: %s", patient_phone, reason)
@@ -102,6 +103,8 @@ class Notifier:
         if not w:
             return None
         self.store.mark_offered(w["id"])
-        self._template(w["phone"], "waitlist_offer", [types[w["type_key"]]["name_he"], hebrew_label(appt.start)])
+        lang = self.store.language(w["phone"], self.cfg.get("default_language", "he"))
+        self.template(w["phone"], "waitlist_offer", [type_name(types[w["type_key"]], lang), label(appt.start, lang)],
+                       lang)
         self.store.audit(w["phone"], "waitlist_offer", appt.start.isoformat())
         return w
