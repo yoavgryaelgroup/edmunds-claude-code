@@ -8,7 +8,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from pydantic import BaseModel
 
 from .agent import Assistant
@@ -49,6 +49,10 @@ def create_app(services=None):
             log.exception("assistant failed for +%s", phone)
             answer = f"מצטערים, אירעה תקלה זמנית. אפשר להתקשר למרפאה: {s.cfg['clinic'].get('phone')}"
         s.whatsapp.send_text(phone, answer)
+
+    @app.get("/", include_in_schema=False)
+    def root():
+        return RedirectResponse("/demo" if env("DEMO_ENABLED", "1") != "0" else "/health")
 
     @app.get("/health")
     def health():
