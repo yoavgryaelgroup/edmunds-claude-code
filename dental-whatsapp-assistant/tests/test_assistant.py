@@ -206,3 +206,10 @@ def test_reminders_and_release_of_unconfirmed(svc, clock):
     clock["now"] = at(12, 3, 30)                        # 11.5 h before drop, still not confirmed
     assert reminders.run(svc) == (0, 1)
     assert svc.calendar.get(drop.id) is None
+
+
+def test_unreadable_holiday_calendar_does_not_stop_bookings(svc):
+    def broken(*a):
+        raise RuntimeError("403 from Google")
+    svc.calendar.holidays = broken
+    assert svc.scheduler.find_slots("checkup", limit=1)

@@ -3,12 +3,15 @@
 The AI never writes to the calendar itself: it calls these methods, and every write re-checks under a lock that the
 slot is still free, so two patients chatting at once can't get the same time.
 """
+import logging
 import threading
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from .config import DAY_KEYS, parse_hm, parse_range
+
+log = logging.getLogger(__name__)
 
 HEB_DAYS = ["ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "שבת", "א׳"]  # by weekday(): Monday = ב׳ ... Sunday = א׳
 
@@ -67,7 +70,12 @@ class Scheduler:
         h = self.s.get("holidays") or {}
         if h.get("calendar_id"):
             keywords = [k.lower() for k in h.get("closed_keywords") or []]
-            for d, summary in self.cal.holidays(h["calendar_id"], start, end):
+            try:
+                holidays = self.cal.holidays(h["calendar_id"], start, end)
+            except Exception:   # the holiday calendar is a convenience: never let it stop bookings
+                log.exception("could not read the holiday calendar %s; add closures to closed_dates", h["calendar_id"])
+                holidays = []
+            for d, summary in holidays:
                 name = summary.lower()
                 if name.startswith("erev "):
                     if any(k in name for k in keywords):
